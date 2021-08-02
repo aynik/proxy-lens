@@ -1,6 +1,10 @@
 import { strict as assert } from 'assert'
 import { lens } from '..'
 
+type Hobby = {
+  name: string
+}
+
 type Street = {
   name: string
 }
@@ -19,6 +23,7 @@ type Company = {
 type Person = {
   name: string
   company?: Company
+  hobbies?: Hobby[]
 }
 
 const john: Person = {
@@ -62,6 +67,28 @@ assert.equal(unemployedMaryCompany, undefined)
 const employedMichaelCompany = lens(employedMichael).company.name.get()
 
 assert.equal(employedMichaelCompany, 'Google')
+
+const fisherMary = lens(mary).hobbies[0].name.set('Fishing')
+
+assert.deepEqual(fisherMary, {
+  name: 'Mary Sanchez',
+  hobbies: [{ name: 'Fishing' }],
+})
+
+const boredMary = lens(mary).hobbies.del(0).get()
+
+assert.deepEqual(boredMary, { name: 'Mary Sanchez', hobbies: [] })
+
+const sailorMary = lens(mary)
+  .hobbies.ins(0, { name: 'Fishing' })
+  .hobbies.cat({ name: 'Boating' })
+  .hobbies.ins(1, { name: 'Swimming' })
+  .get()
+
+assert.deepEqual(sailorMary, {
+  name: 'Mary Sanchez',
+  hobbies: [{ name: 'Fishing' }, { name: 'Swimming' }, { name: 'Boating' }],
+})
 
 const localizedEmployedJohn = lens(employedJohn)
   .company.name.put('Apple')

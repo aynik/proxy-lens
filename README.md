@@ -25,6 +25,10 @@ import { lens } from 'proxy-lens'
 We can create now some testing types that we will use through the example.
 
 ```typescript
+type Hobby = {
+  name: string
+}
+
 type Street = {
   name: string;
 };
@@ -43,6 +47,7 @@ type Company = {
 type Person = {
   name: string;
   company?: Company;
+  hobbies?: Hobby[];
 };
 ```
 
@@ -101,6 +106,31 @@ assert.equal(unemployedMaryCompany, undefined);
 const employedMichaelCompany = lens(employedMichael).company.name.get();
 
 assert.equal(employedMichaelCompany, "Google");
+```
+Aside of support for array access by index, there's also three extra operations for array types to manipulate their contents based on a given index, these are `del` to delete an item at a given index, `ins` to insert an item at a given place (without overwriting other items) and `cat` to concatenate an item at the end of the array. Let's see how they're used.
+
+```typescript
+const fisherMary = lens(mary).hobbies[0].name.set('Fishing')
+
+assert.deepEqual(fisherMary, {
+  name: 'Mary Sanchez',
+  hobbies: [{ name: 'Fishing' }],
+})
+
+const boredMary = lens(mary).hobbies.del(0).get()
+
+assert.deepEqual(boredMary, { name: 'Mary Sanchez', hobbies: [] })
+
+const sailorMary = lens(mary)
+  .hobbies.ins(0, { name: 'Fishing' })
+  .hobbies.cat({ name: 'Boating' })
+  .hobbies.ins(1, { name: 'Swimming' })
+  .get()
+
+assert.deepEqual(sailorMary, {
+  name: 'Mary Sanchez',
+  hobbies: [{ name: 'Fishing' }, { name: 'Swimming' }, { name: 'Boating' }],
+})
 ```
 
 We can use the `put` method to perform sets on different slices of the parent object, at the end of the edition we can call `get` to return the parent value (otherwise we keep getting the parent lens).
