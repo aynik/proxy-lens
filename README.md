@@ -124,12 +124,17 @@ assert.deepEqual(boredMary, { name: 'Mary Sanchez', hobbies: [] })
 const sailorMary = lens(mary)
   .hobbies.ins(0, { name: 'Fishing' })
   .hobbies.cat({ name: 'Boating' })
-  .hobbies.ins(1, { name: 'Swimming' })
+  .hobbies.ins(1, [{ name: 'Swimming' }, { name: 'Rowing' }])
   .get()
 
 assert.deepEqual(sailorMary, {
   name: 'Mary Sanchez',
-  hobbies: [{ name: 'Fishing' }, { name: 'Swimming' }, { name: 'Boating' }],
+  hobbies: [
+    { name: 'Fishing' },
+    { name: 'Swimming' },
+    { name: 'Rowing' },
+    { name: 'Boating' },
+  ],
 })
 ```
 

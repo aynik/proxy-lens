@@ -589,6 +589,19 @@ describe('ins', () => {
     })
   })
 
+  it('inserts many nested items', () => {
+    const source: { a: { b: { c: string }[] } } = {
+      a: { b: [{ c: 'notouch' }] },
+    }
+    expect(
+      lens(source)
+        .a.b.ins(0, [{ c: 'insert' }, { c: 'many' }])
+        .get(),
+    ).toMatchObject({
+      a: { b: [{ c: 'insert' }, { c: 'many' }, { c: 'notouch' }] },
+    })
+  })
+
   it('inserts a nested item via null', () => {
     const source: { a: { b: { c: string }[] | null } | null } = {
       a: null,
@@ -619,6 +632,19 @@ describe('cat', () => {
     }
     expect(lens(source).a.b.cat({ c: 'concat' }).get()).toMatchObject({
       a: { b: [{ c: 'notouch' }, { c: 'concat' }] },
+    })
+  })
+
+  it('concats many nested items', () => {
+    const source: { a: { b: { c: string }[] } } = {
+      a: { b: [{ c: 'notouch' }] },
+    }
+    expect(
+      lens(source)
+        .a.b.cat([{ c: 'concat' }, { c: 'many' }])
+        .get(),
+    ).toMatchObject({
+      a: { b: [{ c: 'notouch' }, { c: 'concat' }, { c: 'many' }] },
     })
   })
 

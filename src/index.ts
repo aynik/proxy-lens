@@ -13,8 +13,8 @@ export type ProxyLensOperations<A, B> = {
 
 export type ArrayProxyLensOperations<A, B> = {
   del(index: number, a?: A): ProxyLens<A, A>
-  ins(index: number, b: ArrayItem<B>, a?: A): ProxyLens<A, A>
-  cat(b: ArrayItem<B>, a?: A): ProxyLens<A, A>
+  ins(index: number, b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>
+  cat(b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>
 }
 
 export type BaseProxyLens<A, B> = ProxyLensOperations<A, B> &
@@ -85,20 +85,20 @@ function arrayProxyLensOperations<A, B>(
           (_a ?? a) as A,
         ) as A,
       ),
-    ins: (index: number, _b: ArrayItem<B>, _a?: A) =>
+    ins: (index: number, _b: ArrayItem<B> | B, _a?: A) =>
       lens(
         abSet(
           mutateArrayCopy<A, B>(abGet, (_a ?? a) as A, (b) =>
-            b.splice(index, 0, _b),
+            b.splice(index, 0, ...(Array.isArray(_b) ? _b : [_b])),
           ),
           (_a ?? a) as A,
         ) as A,
       ),
-    cat: (_b: ArrayItem<B>, _a?: A) =>
+    cat: (_b: ArrayItem<B> | B, _a?: A) =>
       lens(
         abSet(
           mutateArrayCopy<A, B>(abGet, (_a ?? a) as A, (b) =>
-            b.splice(b.length, 0, _b),
+            b.splice(b.length, 0, ...(Array.isArray(_b) ? _b : [_b])),
           ),
           (_a ?? a) as A,
         ) as A,
