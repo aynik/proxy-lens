@@ -1,4 +1,4 @@
-type ArrayItem<T> = T extends Array<infer R> ? R : never
+type ArrayItem<T> = T extends ReadonlyArray<infer R> ? R : never
 
 export type Getter<A, B> = (a: A) => B
 export type Setter<A, B> = (b: B, a: A) => A
@@ -22,13 +22,14 @@ export type BaseProxyLens<A, B> = ProxyLensOperations<A, B> &
     ? { [K in keyof B]-?: ProxyLens<A, B[K]> }
     : unknown)
 
-export type BaseArrayProxyLens<A, B> = Exclude<B, void | null> extends Array<
-  unknown
->
+export type BaseArrayProxyLens<A, B> = Exclude<
+  B,
+  void | null
+> extends ReadonlyArray<unknown>
   ? ArrayProxyLensOperations<A, B> &
       Omit<
-        Array<BaseProxyLens<A, ArrayItem<B>>>,
-        Exclude<keyof Array<ArrayItem<B>>, number>
+        ReadonlyArray<BaseProxyLens<A, ArrayItem<B>>>,
+        Exclude<keyof ReadonlyArray<ArrayItem<B>>, number>
       >
   : unknown
 
