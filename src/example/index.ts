@@ -40,11 +40,12 @@ const michael: Person = {
 
 const employedJohn = lens(john).company.set({
   name: 'Microsoft',
+  address: { city: 'Redmond' },
 })
 
 assert.deepEqual(employedJohn, {
   name: 'John Wallace',
-  company: { name: 'Microsoft' },
+  company: { name: 'Microsoft', address: { city: 'Redmond' } },
 })
 
 const employedMichael = lens(michael).company.set({

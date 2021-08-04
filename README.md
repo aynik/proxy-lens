@@ -250,13 +250,14 @@ Lets now assign some of them a company via the proxy lens `set` method, the comm
 import { strict as assert } from 'assert'; // to check the results
 
 const employedJohn = lens(john).company.set({
-  name: 'Microsoft'
+  name: 'Microsoft',
+  address: { city: 'Redmond' }
 });
 
 assert.deepEqual(employedJohn, {
   name: 'John Wallace',
-  company: { name: 'Microsoft' }
-});
+  company: { name: 'Microsoft', address: { city: 'Redmond' } },
+})
 
 const employedMichael = lens(michael).company.set({
   name: 'Google'
