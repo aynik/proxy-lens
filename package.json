@@ -1,6 +1,6 @@
 {
   "name": "proxy-lens",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A type safe functional lens implemented via proxy",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
