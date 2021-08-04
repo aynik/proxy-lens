@@ -28,7 +28,7 @@ type ArrayProxyLens<A, B> = Exclude<B, void | null> extends ReadonlyArray<
   ? ProxyLensArrayMethods<A, Array<ArrayItem<B>>> &
       Omit<
         ReadonlyArray<BaseProxyLens<A, ArrayItem<B>>>,
-        Exclude<keyof ReadonlyArray<ArrayItem<B>>, number>
+        Exclude<keyof Array<ArrayItem<B>>, number>
       >
   : unknown
 
@@ -102,8 +102,8 @@ function lensArrayMethods<A, B extends Array<ArrayItem<B>>>(
 }
 
 function proxyLens<A, B>(
-  get: Getter<A, B> | Getter<A, ArrayItem<B>[]>,
-  set: Setter<A, B> | Setter<A, ArrayItem<B>[]>,
+  get: Getter<A, B> | Getter<A, Array<ArrayItem<B>>>,
+  set: Setter<A, B> | Setter<A, Array<ArrayItem<B>>>,
   a?: A,
 ): ProxyLens<A, B> {
   return new Proxy({} as ProxyLens<A, B>, {
@@ -113,8 +113,8 @@ function proxyLens<A, B>(
         : {}) as B
       return (
         lensArrayMethods<A, Array<ArrayItem<B>>>(
-          get as Getter<A, ArrayItem<B>[]>,
-          set as Setter<A, ArrayItem<B>[]>,
+          get as Getter<A, Array<ArrayItem<B>>>,
+          set as Setter<A, Array<ArrayItem<B>>>,
           a,
         )[key as keyof ProxyLensArrayMethods<A, Array<ArrayItem<B>>>] ??
         lensBaseMethods<A, B>(get as Getter<A, B>, set as Setter<A, B>, a)[
