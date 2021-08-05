@@ -1,41 +1,41 @@
 import { lens } from '.'
 
 describe('get', () => {
-  it('gets a nested value', async () => {
+  it('gets a nested value', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
     expect(lens(source).a.b.c.get()).toEqual(true)
   })
 
-  it('gets a nested undefined value via undefined', async () => {
+  it('gets a nested undefined value via undefined', () => {
     const source: { a?: { b?: { c?: boolean } } } = {}
     expect(lens(source).a.b.c.get()).toEqual(undefined)
   })
 
-  it('gets a nested undefined value via null', async () => {
+  it('gets a nested undefined value via null', () => {
     const source: { a: { b: { c: boolean } | null } | null } = { a: null }
     expect(lens(source).a.b.c.get()).toEqual(undefined)
   })
 
-  it('gets a nested value via array index', async () => {
+  it('gets a nested value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] } } = {
       a: { b: [{ c: true }] },
     }
     expect(lens(source).a.b[0].c.get()).toEqual(true)
   })
 
-  it('gets a nested undefined value via array index', async () => {
+  it('gets a nested undefined value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] | null } | null } = {
       a: null,
     }
     expect(lens(source).a.b[0].c.get()).toEqual(undefined)
   })
 
-  it('gets a nested value using abstract lens', async () => {
+  it('gets a nested value using abstract lens', () => {
     const source = { a: { b: { c: true } } }
     expect(lens<{ a: { b: { c: boolean } } }>().a.b.c.get(source)).toEqual(true)
   })
 
-  it('gets a nested value using abstract lens via array', async () => {
+  it('gets a nested value using abstract lens via array', () => {
     const source = { a: { b: [{ c: true }] } }
     expect(lens<{ a: { b: { c: boolean }[] } }>().a.b[0].c.get(source)).toEqual(
       true,
@@ -44,21 +44,21 @@ describe('get', () => {
 })
 
 describe('set', () => {
-  it('sets a nested value', async () => {
+  it('sets a nested value', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: false } } }
     expect(lens(source).a.b.c.set(true)).toMatchObject({
       a: { b: { c: true } },
     })
   })
 
-  it('sets a nested value via undefined', async () => {
+  it('sets a nested value via undefined', () => {
     const source: { a?: { b?: { c?: boolean } } } = {}
     expect(lens(source).a.b.c.set(true)).toMatchObject({
       a: { b: { c: true } },
     })
   })
 
-  it('sets a nested value via null', async () => {
+  it('sets a nested value via null', () => {
     const source: { a: { b: { c: boolean | null } | null } | null } = {
       a: null,
     }
@@ -67,7 +67,7 @@ describe('set', () => {
     })
   })
 
-  it('sets a nested value via array index', async () => {
+  it('sets a nested value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] } } = {
       a: { b: [{ c: false }] },
     }
@@ -76,7 +76,7 @@ describe('set', () => {
     })
   })
 
-  it('sets a nested undefined value via array index', async () => {
+  it('sets a nested undefined value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] | null } | null } = {
       a: null,
     }
@@ -85,7 +85,7 @@ describe('set', () => {
     })
   })
 
-  it('sets a nested value using abstract lens', async () => {
+  it('sets a nested value using abstract lens', () => {
     const source = { a: { b: { c: false } } }
     expect(
       lens<{ a: { b: { c: boolean } } }>().a.b.c.set(true, source),
@@ -94,7 +94,7 @@ describe('set', () => {
     })
   })
 
-  it('sets a nested value using abstract lens via array', async () => {
+  it('sets a nested value using abstract lens via array', () => {
     const source = { a: { b: [{ c: false }] } }
     expect(
       lens<{ a: { b: { c: boolean }[] } }>().a.b[0].c.set(true, source),
@@ -105,7 +105,7 @@ describe('set', () => {
 })
 
 describe('put', () => {
-  it('puts two nested values', async () => {
+  it('puts two nested values', () => {
     const source: { a: { b: { c: boolean }; d: { e: { f: boolean } } } } = {
       a: { b: { c: false }, d: { e: { f: false } } },
     }
@@ -114,7 +114,7 @@ describe('put', () => {
     })
   })
 
-  it('puts two nested values via undefined', async () => {
+  it('puts two nested values via undefined', () => {
     const source: {
       a?: { b?: { c?: boolean }; d?: { e?: { f?: boolean } } }
     } = {}
@@ -123,7 +123,7 @@ describe('put', () => {
     })
   })
 
-  it('puts two nested undefined values via null', async () => {
+  it('puts two nested undefined values via null', () => {
     const source: {
       a: {
         b: { c: boolean | null } | null
@@ -135,7 +135,7 @@ describe('put', () => {
     })
   })
 
-  it('puts two nested values via array index', async () => {
+  it('puts two nested values via array index', () => {
     const source: {
       a: { b: readonly { c: boolean }[]; d: { e: { f: boolean }[] } }
     } = {
@@ -148,7 +148,7 @@ describe('put', () => {
     })
   })
 
-  it('puts two nested undefined values via array index', async () => {
+  it('puts two nested undefined values via array index', () => {
     const source: {
       a: {
         b: readonly { c: boolean | null }[] | null
@@ -162,26 +162,26 @@ describe('put', () => {
     })
   })
 
-  it('puts two nested values using abstract lens', async () => {
+  it('puts two nested values using abstract lens', () => {
     const source = { a: { b: { c: false }, d: { e: { f: false } } } }
     expect(
       lens<{ a: { b: { c: boolean }; d: { e: { f: boolean } } } }>()
-        .a.b.c.put(true, source)
-        .a.d.e.f.put(true, source)
+        .a.b.c.put(true)
+        .a.d.e.f.put(true)
         .get(source),
     ).toMatchObject({
       a: { b: { c: true }, d: { e: { f: true } } },
     })
   })
 
-  it('puts two nested values using abstract lens via array index', async () => {
+  it('puts two nested values using abstract lens via array index', () => {
     const source = { a: { b: [{ c: false }], d: { e: [{ f: false }] } } }
     expect(
       lens<{
         a: { b: readonly { c: boolean }[]; d: { e: readonly { f: boolean }[] } }
       }>()
-        .a.b[0].c.put(true, source)
-        .a.d.e[0].f.put(true, source)
+        .a.b[0].c.put(true)
+        .a.d.e[0].f.put(true)
         .get(source),
     ).toMatchObject({
       a: { b: [{ c: true }], d: { e: [{ f: true }] } },
@@ -190,7 +190,7 @@ describe('put', () => {
 })
 
 describe('mod', () => {
-  it('gets a mod from a nested value', async () => {
+  it('gets a mod from a nested value', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
     expect(
       lens(source)
@@ -199,7 +199,7 @@ describe('mod', () => {
     ).toEqual(false)
   })
 
-  it('gets a mod from a nested undefined value via undefined', async () => {
+  it('gets a mod from a nested undefined value via undefined', () => {
     const source: { a?: { b?: { c?: boolean } } } = {}
     expect(
       lens(source)
@@ -208,7 +208,7 @@ describe('mod', () => {
     ).toEqual(true)
   })
 
-  it('gets a mod from a nested undefined value via null', async () => {
+  it('gets a mod from a nested undefined value via null', () => {
     const source: { a: { b: { c: boolean | null } | null } | null } = {
       a: null,
     }
@@ -219,7 +219,7 @@ describe('mod', () => {
     ).toEqual(true)
   })
 
-  it('gets a mod from a nested value via array index', async () => {
+  it('gets a mod from a nested value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] } } = {
       a: { b: [{ c: true }] },
     }
@@ -230,7 +230,7 @@ describe('mod', () => {
     ).toEqual(false)
   })
 
-  it('gets a mod from a nested undefined value via array index', async () => {
+  it('gets a mod from a nested undefined value via array index', () => {
     const source: {
       a: { b: readonly { c: boolean | null }[] | null } | null
     } = {
@@ -243,7 +243,7 @@ describe('mod', () => {
     ).toEqual(true)
   })
 
-  it('gets a mod from a nested value using abstract lens', async () => {
+  it('gets a mod from a nested value using abstract lens', () => {
     const source = { a: { b: { c: true } } }
     expect(
       lens<{ a: { b: { c: boolean } } }>()
@@ -252,7 +252,7 @@ describe('mod', () => {
     ).toEqual(false)
   })
 
-  it('gets a mod from a nested value using abstract lens via array index', async () => {
+  it('gets a mod from a nested value using abstract lens via array index', () => {
     const source = { a: { b: [{ c: true }] } }
     expect(
       lens<{ a: { b: readonly { c: boolean }[] } }>()
@@ -261,7 +261,7 @@ describe('mod', () => {
     ).toEqual(false)
   })
 
-  it('sets a mod from a nested value', async () => {
+  it('sets a mod from a nested value', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
     expect(
       lens(source)
@@ -272,7 +272,7 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested undefined value via undefined', async () => {
+  it('sets a mod from a nested undefined value via undefined', () => {
     type S = { a?: { b?: { c?: boolean } } }
     const source: S = {}
     expect(
@@ -284,7 +284,7 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested undefined value via null', async () => {
+  it('sets a mod from a nested undefined value via null', () => {
     const source: { a: { b: { c: boolean | null } | null } | null } = {
       a: null,
     }
@@ -297,7 +297,7 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested value via array index', async () => {
+  it('sets a mod from a nested value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] } } = {
       a: { b: [{ c: true }] },
     }
@@ -310,7 +310,7 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested undefined value via array index', async () => {
+  it('sets a mod from a nested undefined value via array index', () => {
     const source: {
       a: { b: readonly { c: boolean | null }[] | null } | null
     } = {
@@ -325,7 +325,7 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested value using abstract lens', async () => {
+  it('sets a mod from a nested value using abstract lens', () => {
     const source = { a: { b: { c: true } } }
     expect(
       lens<{ a: { b: { c: boolean } } }>()
@@ -336,7 +336,7 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested value using abstract lens via array index', async () => {
+  it('sets a mod from a nested value using abstract lens via array index', () => {
     const source = { a: { b: [{ c: true }] } }
     expect(
       lens<{ a: { b: readonly { c: boolean }[] } }>()
@@ -349,7 +349,7 @@ describe('mod', () => {
 })
 
 describe('iso', () => {
-  it('gets an iso from a nested value', async () => {
+  it('gets an iso from a nested value', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
     expect(
       lens(source)
@@ -361,7 +361,7 @@ describe('iso', () => {
     ).toEqual('true')
   })
 
-  it('gets an iso from a nested undefined value via undefined', async () => {
+  it('gets an iso from a nested undefined value via undefined', () => {
     const source: { a?: { b?: { c?: boolean } } } = {}
     expect(
       lens(source)
@@ -373,7 +373,7 @@ describe('iso', () => {
     ).toEqual('false')
   })
 
-  it('gets an iso from a nested undefined value via null', async () => {
+  it('gets an iso from a nested undefined value via null', () => {
     const source: { a: { b: { c: boolean | null } | null } | null } = {
       a: null,
     }
@@ -387,7 +387,7 @@ describe('iso', () => {
     ).toEqual('false')
   })
 
-  it('gets an iso from a nested value via array index', async () => {
+  it('gets an iso from a nested value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] } } = {
       a: { b: [{ c: true }] },
     }
@@ -401,7 +401,7 @@ describe('iso', () => {
     ).toEqual('true')
   })
 
-  it('gets an iso from a nested undefined value via array index', async () => {
+  it('gets an iso from a nested undefined value via array index', () => {
     const source: {
       a: { b: readonly { c: boolean | null }[] | null } | null
     } = {
@@ -417,7 +417,7 @@ describe('iso', () => {
     ).toEqual('false')
   })
 
-  it('gets an iso from a nested value using abstract lens', async () => {
+  it('gets an iso from a nested value using abstract lens', () => {
     const source = { a: { b: { c: true } } }
     expect(
       lens<{ a: { b: { c: boolean } } }>()
@@ -429,7 +429,7 @@ describe('iso', () => {
     ).toEqual('true')
   })
 
-  it('gets an iso from a nested value using abstract lens via array index', async () => {
+  it('gets an iso from a nested value using abstract lens via array index', () => {
     const source = { a: { b: [{ c: true }] } }
     expect(
       lens<{ a: { b: readonly { c: boolean }[] } }>()
@@ -441,7 +441,7 @@ describe('iso', () => {
     ).toEqual('true')
   })
 
-  it('sets an iso from a nested value', async () => {
+  it('sets an iso from a nested value', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
     expect(
       lens(source)
@@ -455,7 +455,7 @@ describe('iso', () => {
     })
   })
 
-  it('sets an iso from a nested undefined value via undefined', async () => {
+  it('sets an iso from a nested undefined value via undefined', () => {
     const source: { a?: { b?: { c?: boolean } } } = {}
     expect(
       lens(source)
@@ -469,7 +469,7 @@ describe('iso', () => {
     })
   })
 
-  it('sets an iso from a nested undefined value via null', async () => {
+  it('sets an iso from a nested undefined value via null', () => {
     const source: { a: { b: { c: boolean | null } | null } | null } = {
       a: null,
     }
@@ -485,7 +485,7 @@ describe('iso', () => {
     })
   })
 
-  it('sets an iso from a nested value via array index', async () => {
+  it('sets an iso from a nested value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] } } = {
       a: { b: [{ c: true }] },
     }
@@ -501,7 +501,7 @@ describe('iso', () => {
     })
   })
 
-  it('sets an iso from a nested undefined value via array index', async () => {
+  it('sets an iso from a nested undefined value via array index', () => {
     const source: {
       a: { b: readonly { c: boolean | null }[] | null } | null
     } = {
@@ -519,7 +519,7 @@ describe('iso', () => {
     })
   })
 
-  it('sets an iso from a nested value using abstract lens', async () => {
+  it('sets an iso from a nested value using abstract lens', () => {
     const source = { a: { b: { c: true } } }
     expect(
       lens<{ a: { b: { c: boolean } } }>()
@@ -533,7 +533,7 @@ describe('iso', () => {
     })
   })
 
-  it('sets an iso from a nested value using abstract lens via array index', async () => {
+  it('sets an iso from a nested value using abstract lens via array index', () => {
     const source = { a: { b: [{ c: true }] } }
     expect(
       lens<{ a: { b: readonly { c: boolean }[] } }>()
@@ -668,5 +668,46 @@ describe('cat', () => {
     ).toMatchObject({
       a: { b: [{ c: 'notouch' }, { c: 'concat' }] },
     })
+  })
+})
+
+describe('proxy', () => {
+  it('implements ownKeys for object root', () => {
+    expect(Object.keys(lens({}))).toEqual([
+      'get',
+      'set',
+      'put',
+      'mod',
+      'iso',
+      'del',
+      'ins',
+      'cat',
+    ])
+  })
+
+  it('implements ownKeys for array root', () => {
+    expect(Object.keys(lens([]))).toEqual([
+      'get',
+      'set',
+      'put',
+      'mod',
+      'iso',
+      'del',
+      'ins',
+      'cat',
+    ])
+  })
+
+  it('implements ownKeys for abstract lens', () => {
+    expect(Object.keys(lens())).toEqual([
+      'get',
+      'set',
+      'put',
+      'mod',
+      'iso',
+      'del',
+      'ins',
+      'cat',
+    ])
   })
 })

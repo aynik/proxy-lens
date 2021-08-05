@@ -47,7 +47,7 @@ Proxy lenses provide two sets of methods for each level in the chain (including 
 type ProxyLensBaseMethods<A, B> = {
   get(a?: A): B
   set(b: B, a?: A): A
-  put(b: B, a?: A): ProxyLens<A, A>
+  put(b: B): ProxyLens<A, A>
   mod(fn: (b: B) => B): ProxyLens<A, B>
   iso<C>(get: Getter<B, C>, set: Setter<B, C>): ProxyLens<A, C>
 }
@@ -71,9 +71,9 @@ lens({ a: { b: 'hello' }}).a.b.set('bye') // :: { a: { b: 'bye' }}
 lens<{ a: { b: string }}>().a.b.set('bye', { a: { b: 'hello' }}) // :: { a: { b: 'bye' }}
 ```
 
-#### `put(b: B, a?: A): A` (method)
+#### `put(b: B): ProxyLens<A, A>` (method)
 
-Works similarly to `set()` but instead of returning the root value it returns a new lens of the root value, this way after using it other methods can be chained on it.  Please note that after using `put()`, you have to use either `get()` or `set()` to get actual values from the lens.
+Works similarly to `set()` but instead of returning the root value it returns a new lens of the root value, this way after using it other methods can be chained on it. 
 
 ```typescript
 lens({ a: false, b: true })
@@ -83,6 +83,14 @@ lens({ a: false, b: true })
 lens<{ a: boolean, b: boolean }>()
   .a.put(true)
   .b.put(false).get({ a: false, b: true }) // :: { a: true, b: false }
+
+lens({ a: false, b: true })
+  .a.put(true)
+  .a.set(false) // :: { a: false, b: true } (overriden)
+
+lens<{ a: boolean, b: boolean }>()
+  .a.put(true)
+  .a.set(false, { a: false, b: true }) // :: { a: false, b: true } (overriden)
 ```
 
 #### `mod(fn: (b: B) => B): ProxyLens<A, B>` (method)
