@@ -1,150 +1,153 @@
-type ArrayItem<T> = T extends ReadonlyArray<infer R> ? R : never
-type ArrayFrom<T> = Array<ArrayItem<T>>
-
 type Prop = string | number | symbol
 
 export type Getter<A, B> = (a: A) => B
 export type Setter<A, B> = (b: B, a: A) => A
 
+type ArrayItem<T> = T extends ReadonlyArray<infer R> ? R : never
+type ArrayFrom<T> = Array<ArrayItem<T>>
+
 type ArrayGetter<A, B> = Getter<A, ArrayFrom<B>>
 type ArraySetter<A, B> = Setter<A, ArrayFrom<B>>
 
-export type ProxyLensBaseMethods<A, B> = {
-  get(a?: A): B
-  set(b: B, a?: A): A
-  put(b: B): ProxyLens<A, A>
-  mod(fn: (b: B) => B): ProxyLens<A, B>
+export type BaseLens<A, B> = {
+  get(target?: A): B
+  set(value: B, target?: A): A
+  put(value: B): ProxyLens<A, A>
+  mod(fn: (value: B) => B): ProxyLens<A, B>
   iso<C>(get: Getter<B, C>, set: Setter<B, C>): ProxyLens<A, C>
 }
 
-export type ProxyLensArrayMethods<A, B extends ArrayFrom<B>> = {
-  del(index: number, a?: A): ProxyLens<A, A>
-  ins(index: number, b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>
-  cat(b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>
+export type ArrayLens<A, B extends ArrayFrom<B>> = {
+  del(index: number, target?: A): ProxyLens<A, A>
+  ins(index: number, value: ArrayItem<B> | B, target?: A): ProxyLens<A, A>
+  cat(value: ArrayItem<B> | B, target?: A): ProxyLens<A, A>
 }
 
-type BaseProxyLens<A, B> = ProxyLensBaseMethods<A, B> &
+type Lens<A, B> = BaseLens<A, B> & ArrayLens<A, ArrayFrom<B>>
+
+type BaseProxyLens<A, B> = BaseLens<A, B> &
   (Exclude<B, void | null> extends Record<Prop, unknown>
     ? { [K in keyof B]-?: ProxyLens<A, B[K]> }
-    : unknown)
+    : Lens<A, B>)
 
 type ArrayProxyLens<A, B> = Exclude<B, void | null> extends ReadonlyArray<
   unknown
 >
-  ? ProxyLensArrayMethods<A, ArrayFrom<B>> &
+  ? ArrayLens<A, ArrayFrom<B>> &
       Omit<
         ReadonlyArray<BaseProxyLens<A, ArrayItem<B>>>,
         Exclude<keyof ArrayFrom<B>, number>
       >
-  : unknown
+  : Lens<A, B>
 
 export type ProxyLens<A, B> = BaseProxyLens<A, B> & ArrayProxyLens<A, B>
 
-function lensBaseMethods<A, B>(
+function baseLens<A, B>(
   get: Getter<A, B>,
   set: Setter<A, B>,
-  a?: A,
-): ProxyLensBaseMethods<A, B> {
+  root?: A,
+): BaseLens<A, B> {
   return {
-    get: (a_?: A) => get((a_ ?? a) as A),
-    set: (b: B, a_?: A) => set(b, (a_ ?? a) as A),
-    put: (b: B) =>
+    get: (target?: A) => get((target ?? root) as A),
+    set: (value: B, target?: A) => set(value, (target ?? root) as A),
+    put: (value: B) =>
       proxyLens(
-        (a: A) => set(b, a),
-        (a_: A) => a_,
-        a,
+        (target: A) => set(value, target),
+        (target: A) => target,
+        root,
       ),
     mod: (fn) =>
       proxyLens(
-        (a: A) => fn(get(a)),
-        (b: B, a: A) => set(fn(b), a),
-        a,
+        (target: A) => fn(get(target)),
+        (value: B, target: A) => set(fn(value), target),
+        root,
       ),
     iso: <C>(get_: Getter<B, C>, set_: Setter<B, C>) =>
       proxyLens(
-        (a: A): C => get_(get(a)),
-        (c: C, a: A) => set(set_(c, get(a)), a),
-        a,
+        (root: A): C => get_(get(root)),
+        (value: C, root: A) => set(set_(value, get(root)), root),
+        root,
       ),
   }
 }
 
-function lensArrayMethods<A, B extends ArrayFrom<B>>(
+function arrayLens<A, B extends ArrayFrom<B>>(
   get: ArrayGetter<A, B>,
   set: ArraySetter<A, B>,
   a?: A,
-): ProxyLensArrayMethods<A, ArrayFrom<B>> {
+): ArrayLens<A, ArrayFrom<B>> {
   return {
-    del: (index: number, a_?: A) =>
+    del: (index: number, target?: A) =>
       lens(
         set(
-          lens(get((a_ ?? a) as A))
-            .mod((b) => [
-              ...(b ?? []).slice(0, index),
-              ...(b ?? []).slice(index + 1),
+          lens(get((target ?? a) as A))
+            .mod((target) => [
+              ...(target ?? []).slice(0, index),
+              ...(target ?? []).slice(index + 1),
             ])
             .get() as B,
-          (a_ ?? a) as A,
+          (target ?? a) as A,
         ) as A,
       ),
-    ins: (index: number, b_: ArrayItem<B> | B, a_?: A) =>
+    ins: (index: number, value: ArrayItem<B> | B, target?: A) =>
       lens(
         set(
-          lens(get((a_ ?? a) as A))
-            .mod((b) => [
-              ...(b ?? []).slice(0, index),
-              ...(Array.isArray(b_) ? b_ : [b_]),
-              ...(b ?? []).slice(index),
+          lens(get((target ?? a) as A))
+            .mod((target) => [
+              ...(target ?? []).slice(0, index),
+              ...(Array.isArray(value) ? value : [value]),
+              ...(target ?? []).slice(index),
             ])
             .get() as B,
-          (a_ ?? a) as A,
+          (target ?? a) as A,
         ) as A,
       ),
-    cat: (b_: ArrayItem<B> | B, a_?: A) =>
+    cat: (value: ArrayItem<B> | B, target?: A) =>
       lens(
         set(
-          lens(get((a_ ?? a) as A))
-            .mod((b) => [...(b ?? []), ...(Array.isArray(b_) ? b_ : [b_])])
+          lens(get((target ?? a) as A))
+            .mod((target) => [
+              ...(target ?? []),
+              ...(Array.isArray(value) ? value : [value]),
+            ])
             .get() as B,
-          (a_ ?? a) as A,
+          (target ?? a) as A,
         ) as A,
       ),
   }
 }
 
-function primitiveForKey(key: Prop) {
-  return key.toString().match(/^\+?(0|[1-9]\d*)$/) ? [] : {}
+function getTarget<T>(key: Prop) {
+  return (key.toString().match(/^\+?(0|[1-9]\d*)$/) ? [] : {}) as T
 }
 
 function proxyLens<A, B>(
   get: Getter<A, B> | ArrayGetter<A, B>,
   set: Setter<A, B> | ArraySetter<A, B>,
-  a?: A,
+  root?: A,
 ): ProxyLens<A, B> {
-  const proto: unknown = {
-    ...lensBaseMethods(get as Getter<A, B>, set as Setter<A, B>, a),
-    ...lensArrayMethods(get as ArrayGetter<A, B>, set as ArraySetter<A, B>, a),
-  }
-  return new Proxy(proto as ProxyLens<A, B>, {
-    ownKeys: (methods) => [
-      ...Object.keys(methods),
-      ...Object.keys(a ? get(a as A) : {}),
-    ],
-    get: (methods, key) =>
-      methods[key as keyof ProxyLens<A, B>] ??
-      proxyLens(
-        (a: A): B[keyof B] =>
-          Object.assign(primitiveForKey(key) as B, get(a))[key as keyof B],
-        (b: B[keyof B], a: A): A =>
-          (set as Setter<A, B>)(
-            Object.assign(primitiveForKey(key) as B, get(a), {
-              [key as keyof B]: b,
-            }),
-            a,
-          ),
-        a,
-      ),
-  })
+  return new Proxy(
+    {
+      ...baseLens(get as Getter<A, B>, set as Setter<A, B>, root),
+      ...arrayLens(get as ArrayGetter<A, B>, set as ArraySetter<A, B>, root),
+    } as ProxyLens<A, B>,
+    {
+      get: (lens, key) =>
+        lens[key as keyof Lens<A, B>] ??
+        proxyLens(
+          (a: A): B[keyof B] =>
+            Object.assign(getTarget<B>(key), get(a))[key as keyof B],
+          (b: B[keyof B], a: A): A =>
+            (set as Setter<A, B>)(
+              Object.assign(getTarget<B>(key), get(a), {
+                [key as keyof B]: b,
+              }),
+              a,
+            ),
+          root,
+        ),
+    },
+  )
 }
 
 export function lens<A>(a?: A): ProxyLens<A, A> {

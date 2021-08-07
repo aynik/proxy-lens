@@ -22,10 +22,9 @@ import {
   lens,
   Getter,
   Setter,
-  ArrayItem,
   ProxyLens,
-  ProxyLensBaseMethods,
-  ProxyLensArrayMethods
+  BaseLens,
+  ArrayLens,
 } from 'proxy-lens';
 ```
 
@@ -41,10 +40,10 @@ lens<Person>() // :: ProxyLens<Person, Person>
 
 Proxy lenses provide two sets of methods for each level in the chain (including the root level), a base set of methods and an array-specific set of methods. The first is offered for every property and the second only to array properties. Let's see them in detail.
 
-### `ProxyLensBaseMethods` (type)
+### `BaseLens` (type)
 
 ```typescript
-type ProxyLensBaseMethods<A, B> = {
+type BaseLens<A, B> = {
   get(a?: A): B
   set(b: B, a?: A): A
   put(b: B): ProxyLens<A, A>
@@ -53,7 +52,9 @@ type ProxyLensBaseMethods<A, B> = {
 }
 ```
 
-#### `get(a?: A): B` (method)
+Base interface shared by all concrete or abstract lenses.
+
+#### `.get(a?: A): B` (method)
 
 Gets a value via the current lens, the optional first parameter is either a given root value (for abstract lenses) or the root value that was passed to `lens()`.
 
@@ -62,7 +63,7 @@ lens({ a: { b: true }}).a.b.get() // :: true
 lens<{ a: { b: boolean }}>().a.b.get({ a: { b: true }}) // :: true
 ```
 
-#### `set(b: B, a?: A): A` (method)
+#### `.set(b: B, a?: A): A` (method)
 
 Sets a value via the current lens, the first parameter is the value to set and the optional second parameter is either a given root value (for abstract lenses) or the root value that was passed to `lens()`. It works on immutable root values and it always returns a copy of it containing the modifications.
 
@@ -71,7 +72,7 @@ lens({ a: { b: 'hello' }}).a.b.set('bye') // :: { a: { b: 'bye' }}
 lens<{ a: { b: string }}>().a.b.set('bye', { a: { b: 'hello' }}) // :: { a: { b: 'bye' }}
 ```
 
-#### `put(b: B): ProxyLens<A, A>` (method)
+#### `.put(b: B): ProxyLens<A, A>` (method)
 
 Works similarly to `set()` but instead of returning the root value it returns a new lens of the root value, this way after using it other methods can be chained on it. 
 
@@ -93,7 +94,7 @@ lens<{ a: boolean, b: boolean }>()
   .a.set(false, { a: false, b: true }) // :: { a: false, b: true } (overriden)
 ```
 
-#### `mod(fn: (b: B) => B): ProxyLens<A, B>` (method)
+#### `.mod(fn: (b: B) => B): ProxyLens<A, B>` (method)
 
 It's a method used to modify inputs and outputs of the current lens, it takes a function that receives an input or output value and returns a value of the same type. The method then returns a new lens focused on the property that was modified.
 
@@ -115,7 +116,7 @@ lens<{ a: { b: boolean | string }}>().mod(
 ).set(true) // :: { a: { b: 'true' }}
 ```
 
-#### `iso<C>(get: Getter<B, C>, set: Setter<B, C>): ProxyLens<A, C>` (method)
+#### `.iso<C>(get: Getter<B, C>, set: Setter<B, C>): ProxyLens<A, C>` (method)
 
 It's a method used to build isomorphisms, that is, two-way transformations between input and output values. It takes two functions as arguments, one to transform the current value from a focused property and another to transform a given input into the current value of the focused property, then returns a new lens from the previous root type `A` to the new target type `C`.
 
@@ -142,19 +143,19 @@ lens({ a: { b: boolean }}).iso(
 ```
 
 
-### `ProxyLensArrayMethods` (type)
+### `ArrayLens` (type)
 
 ```typescript
-type ProxyLensBaseMethods<A, B> = {
+type ArrayLens<A, B> = {
   del(index: number, a?: A): ProxyLens<A, A>
   ins(index: number, b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>
   cat(b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>
 }
 ```
 
-These methods are only available for properties focused on array types.
+This interface is available for lenses focused on array types.
 
-#### `del(index: number, a?: A): ProxyLens<A, A>` (method)
+#### `.del(index: number, a?: A): ProxyLens<A, A>` (method)
 
 Used to perform a deletion of a given array item by index. It takes the given index and returns a lens focused on the root property.
 
@@ -163,7 +164,7 @@ lens({ a: [{ b: 'delme' }] }).a.del(0).get() // :: { a: [] }
 lens<{ a: { b: string }[] }>().a.del(0).get({ a: [{ b: 'delme' }] }) // :: { a: [] }
 ```
 
-#### `ins(index: number, b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>` (method)
+#### `.ins(index: number, b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>` (method)
 
 Used to perform a non-destructive insert of a given array item by index, it takes the value to insert and returns a lens focused on the root property. It may take a value of the type `B` (the array) or an item contained in the type `B` (an item of the array).
 
@@ -181,7 +182,7 @@ lens<{ a: string[] }>()
   .a.ins(0, ['insert', 'many'], { a: ['keep'] }).get() // :: { a: ['insert', 'many', 'keep'] }
 ```
  
-#### `cat(b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>` (method)
+#### `.cat(b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>` (method)
 
 Used to perform a concatenation of a given array item, it takes the value to concatenate and returns a lens focused on the root property. Similarly to `ins`, can take a value of the type `B` (the array) or an item contained in the type `B` (an item of the array).
 
