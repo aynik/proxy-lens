@@ -135,20 +135,8 @@ const allCompanies = [
 
 assert.deepEqual(allCompanies, ['Apple', 'Microsoft', 'Google'])
 
-const allNamesUppercase = [
-  localizedEmployedJohn,
-  localizedEmployedMary,
-  employedMichael,
-].map(lens<Person>().name.mod((name) => name.toUpperCase()).get)
-
-assert.deepEqual(allNamesUppercase, [
-  'JOHN WALLACE',
-  'MARY SANCHEZ',
-  'MICHAEL COLLINS',
-])
-
-const nameSplitterIso = lens<Person>().name.iso(
-  (name: string): { first: string; last: string } => ({
+const nameSplitterIso = lens<Person>().name.mod(
+  (name): { first: string; last: string } => ({
     first: name.split(' ')[0],
     last: name.split(' ').slice(1).join(' '),
   }),
@@ -165,3 +153,47 @@ const johnIsNowRobert = nameSplitterIso.set(
 )
 
 assert.deepEqual(johnIsNowRobert, { name: 'Robert Wilcox' })
+
+const allNamesUppercase = [
+  localizedEmployedJohn,
+  localizedEmployedMary,
+  employedMichael,
+].map(lens<Person>().name.mod((name) => name.toUpperCase()).get)
+
+assert.deepEqual(allNamesUppercase, [
+  'JOHN WALLACE',
+  'MARY SANCHEZ',
+  'MICHAEL COLLINS',
+])
+
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
+
+const jsonLens = lens<Json>()
+
+assert.deepEqual(
+  jsonLens.name
+    .put('Jason Finch')
+    .hobbies[0].put({ name: 'Electronics' })
+    .company.name.put('Toshiba')
+    .company.address.set({
+      street: 'Shibaura 1-chome, 1-1',
+      city: 'Minato-ku',
+      zip: '105-8001',
+    }),
+  {
+    name: 'Jason Finch',
+    hobbies: [
+      {
+        name: 'Electronics',
+      },
+    ],
+    company: {
+      name: 'Toshiba',
+      address: {
+        street: 'Shibaura 1-chome, 1-1',
+        city: 'Minato-ku',
+        zip: '105-8001',
+      },
+    },
+  },
+)

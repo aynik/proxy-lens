@@ -7,11 +7,39 @@
 
 A type safe functional lens implemented via proxy
 
+---
+
+* [Install](#install)
+* [API](#api)
+    - [`lens()`](#lens)
+    - [`.get(a?: A): B`](#geta-a-b)
+    - [`.set(b: B, a?: A): A`](#setb-b-a-a-a)
+    - [`.put(b: B): ProxyLens<A, A>`](#putb-b-proxylensa-a)
+    - [`.mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>`](#modcget-getterb-c-set-setterb-c-proxylensa-c)
+    - [`.del(index: number, a?: A): ProxyLens<A, A>`](#delindex-number-a-a-proxylensa-a)
+    - [`.ins(index: number, b: B | B[], a?: A): ProxyLens<A, A>`](#insindex-number-b-b--b-a-a-proxylensa-a)
+    - [`.cat(b: B | B[], a?: A): ProxyLens<A, A>`](#catb-b--b-a-a-proxylensa-a)
+* [Usage](#usage)
+    - [Setup](#setup)
+    - [Setting values with the `.set()` method](#setting-values-with-the-set-method)
+    - [Retrieving values with the `.get()` method](#retrieving-values-with-the-get-method)
+    - [Setting values and continuing with the `.put()` method](#setting-values-and-continuing-with-the-put-method)
+    - [Modifying lenses with the `.mod()` method](#modifying-lenses-with-the-mod-method)
+    - [Manipulating immutable arrays with the `.del()`, `.ins()` and `.cat()` methods](#manipulating-immutable-arrays-with-the-del-ins-and-cat-methods)
+    - [Using abstract lenses](#using-abstract-lenses)
+    - [Recursive abstract lenses](#recursive-abstract-lenses)
+
+---
+
 ## Install
 
 ```shell
 yarn add proxy-lens
 ```
+
+[Back to top ↑](#proxy-lens)
+
+---
 
 ## API
 
@@ -28,7 +56,11 @@ import {
 } from 'proxy-lens';
 ```
 
-### `lens` (function)
+[Back to top ↑](#proxy-lens)
+
+---
+
+### `lens()`
 
 It's the single factory function for creating proxy lenses, it takes a single optional argument which would serve both as the lens root type and value. If this argument is omitted then a type parameter is required and the lens becomes abstract (a root value would need to be passed later).
 
@@ -40,21 +72,28 @@ lens<Person>() // :: ProxyLens<Person, Person>
 
 Proxy lenses provide two sets of methods for each level in the chain (including the root level), a base set of methods and an array-specific set of methods. The first is offered for every property and the second only to array properties. Let's see them in detail.
 
-### `BaseLens` (type)
+[Back to top ↑](#proxy-lens)
+
+---
+
+### `BaseLens` (interface)
 
 ```typescript
 type BaseLens<A, B> = {
-  get(a?: A): B
-  set(b: B, a?: A): A
-  put(b: B): ProxyLens<A, A>
-  mod(fn: (b: B) => B): ProxyLens<A, B>
-  iso<C>(get: Getter<B, C>, set: Setter<B, C>): ProxyLens<A, C>
+  get(target?: A): B
+  set(value: B, target?: A): A
+  put(value: B): ProxyLens<A, A>
+  mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>
 }
 ```
 
 Base interface shared by all concrete or abstract lenses.
 
-#### `.get(a?: A): B` (method)
+[Back to top ↑](#proxy-lens)
+
+---
+
+#### `.get(a?: A): B`
 
 Gets a value via the current lens, the optional first parameter is either a given root value (for abstract lenses) or the root value that was passed to `lens()`.
 
@@ -63,7 +102,11 @@ lens({ a: { b: true }}).a.b.get() // :: true
 lens<{ a: { b: boolean }}>().a.b.get({ a: { b: true }}) // :: true
 ```
 
-#### `.set(b: B, a?: A): A` (method)
+[Back to top ↑](#proxy-lens)
+
+---
+
+#### `.set(b: B, a?: A): A`
 
 Sets a value via the current lens, the first parameter is the value to set and the optional second parameter is either a given root value (for abstract lenses) or the root value that was passed to `lens()`. It works on immutable root values and it always returns a copy of it containing the modifications.
 
@@ -72,9 +115,13 @@ lens({ a: { b: 'hello' }}).a.b.set('bye') // :: { a: { b: 'bye' }}
 lens<{ a: { b: string }}>().a.b.set('bye', { a: { b: 'hello' }}) // :: { a: { b: 'bye' }}
 ```
 
-#### `.put(b: B): ProxyLens<A, A>` (method)
+[Back to top ↑](#proxy-lens)
 
-Works similarly to `set()` but instead of returning the root value it returns a new lens of the root value, this way after using it other methods can be chained on it. 
+---
+
+#### `.put(b: B): ProxyLens<A, A>`
+
+Works similarly to [`.set()`](#setb-b-a-a-a) but instead of returning the root value it returns a new lens of the root value, this way after using it other methods can be chained on it.
 
 ```typescript
 lens({ a: false, b: true })
@@ -94,79 +141,72 @@ lens<{ a: boolean, b: boolean }>()
   .a.set(false, { a: false, b: true }) // :: { a: false, b: true } (overriden)
 ```
 
-#### `.mod(fn: (b: B) => B): ProxyLens<A, B>` (method)
+[Back to top ↑](#proxy-lens)
 
-It's a method used to modify inputs and outputs of the current lens, it takes a function that receives an input or output value and returns a value of the same type. The method then returns a new lens focused on the property that was modified.
+---
+
+#### `.mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>`
+
+It's a method used to build modifications, that is, two-way transformations between input and output values. It takes one or two functions as arguments, one to transform the current value from a focused property and another to transform a given input into the current value of the focused property, then returns a new lens from the previous root type `A` to the new target type `C`. If the second argument is omitted (the setter), then a one-way only isomorphism will be constructed (calling [`.set()`](#setb-b-a-a-a) on will only produce the unmodified root value).
 
 ```typescript
 lens({ a: { b: true }}).mod(
-  (b: boolean): string => String(b)
-).get() // :: 'true'
-
-lens({ a: { b: true }}).mod(
-  (b: boolean): string => String(b)
-).set(true) // :: { a: { b: 'true' }}
-
-lens<{ a: { b: boolean }}>().mod(
-  (b: boolean): string => String(b)
-).get({ a: { b: true }}) // :: 'true'
-
-lens<{ a: { b: boolean | string }}>().mod(
-  (b: boolean): string => String(b)
-).set(true) // :: { a: { b: 'true' }}
-```
-
-#### `.iso<C>(get: Getter<B, C>, set: Setter<B, C>): ProxyLens<A, C>` (method)
-
-It's a method used to build isomorphisms, that is, two-way transformations between input and output values. It takes two functions as arguments, one to transform the current value from a focused property and another to transform a given input into the current value of the focused property, then returns a new lens from the previous root type `A` to the new target type `C`.
-
-```typescript
-lens({ a: { b: true }}).iso(
   (b: boolean): string => String(b),
   (c: string): boolean => c === 'true'
 ).get() // :: 'true'
 
-lens({ a: { b: true }}).iso(
+lens({ a: { b: true }}).mod(
   (b: boolean): string => String(b),
   (c: string): boolean => c === 'true'
 ).set('true') // :: { a: { b: true }}
 
-lens<{ a: { b: boolean }}>().iso(
+lens<{ a: { b: boolean }}>().mod(
   (b: boolean): string => String(b),
   (c: string): boolean => c === 'true'
 ).get({ a: { b: true }}) // :: 'true'
 
-lens({ a: { b: boolean }}).iso(
+lens({ a: { b: boolean }}).mod(
   (b: boolean): string => String(b),
   (c: string): boolean => c === 'true'
 ).set('true', { a: { b: true }}) // :: { a: { b: true }}
 ```
 
+[Back to top ↑](#proxy-lens)
 
-### `ArrayLens` (type)
+---
+
+### `ArrayLens` (interface)
 
 ```typescript
 type ArrayLens<A, B> = {
   del(index: number, a?: A): ProxyLens<A, A>
-  ins(index: number, b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>
-  cat(b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>
+  ins(index: number, b: B | B[], a?: A): ProxyLens<A, A>
+  cat(b: B | B[], a?: A): ProxyLens<A, A>
 }
 ```
 
 This interface is available for lenses focused on array types.
 
-#### `.del(index: number, a?: A): ProxyLens<A, A>` (method)
+[Back to top ↑](#proxy-lens)
 
-Used to perform a deletion of a given array item by index. It takes the given index and returns a lens focused on the root property.
+---
+
+#### `.del(index: number, a?: A): ProxyLens<A, A>`
+
+Used to perform a deletion of a given array item by index. It takes the given index to delete and like [`.put()`](#putb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained.
 
 ```typescript
 lens({ a: [{ b: 'delme' }] }).a.del(0).get() // :: { a: [] }
 lens<{ a: { b: string }[] }>().a.del(0).get({ a: [{ b: 'delme' }] }) // :: { a: [] }
 ```
 
-#### `.ins(index: number, b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>` (method)
+[Back to top ↑](#proxy-lens)
 
-Used to perform a non-destructive insert of a given array item by index, it takes the value to insert and returns a lens focused on the root property. It may take a value of the type `B` (the array) or an item contained in the type `B` (an item of the array).
+---
+
+#### `.ins(index: number, b: B | B[], a?: A): ProxyLens<A, A>`
+
+Used to perform a non-destructive insert of a one or more array items by index, it takes the value to insert and like [`.put()`](#putb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained.
 
 ```typescript
 lens({ a: ['keep'] })
@@ -182,9 +222,13 @@ lens<{ a: string[] }>()
   .a.ins(0, ['insert', 'many'], { a: ['keep'] }).get() // :: { a: ['insert', 'many', 'keep'] }
 ```
  
-#### `.cat(b: ArrayItem<B> | B, a?: A): ProxyLens<A, A>` (method)
+[Back to top ↑](#proxy-lens)
 
-Used to perform a concatenation of a given array item, it takes the value to concatenate and returns a lens focused on the root property. Similarly to `ins`, can take a value of the type `B` (the array) or an item contained in the type `B` (an item of the array).
+---
+
+#### `.cat(b: B | B[], a?: A): ProxyLens<A, A>`
+
+Used to perform a concatenation of one or more array items, it takes the value to concatenate and like [`.put()`](#putb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained.
 
 ```typescript
 lens({ a: ['keep'] })
@@ -200,7 +244,19 @@ lens<{ a: string[] }>()
   .a.cat(['concat', 'many'], { a: ['keep'] }).get() // :: { a: ['keep', 'concat', 'many'] }
 ```
 
+[Back to top ↑](#proxy-lens)
+
+---
+
 ## Usage
+
+Here's a throughout usage example.
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Setup
 
 First we need to import the `lens` function from this library.
 
@@ -253,7 +309,13 @@ const michael: Person = {
 };
 ```
 
-Lets now assign some of them a company via the proxy lens `set` method, the comment next the operation displays what will be returned.
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Setting values with the [`.set()`](#setb-b-a-a-a) method
+
+Lets now assign some of them a company via the proxy lens [`.set()`](#setb-b-a-a-a) method, the comment next the operation displays what will be returned.
 
 ```typescript
 import { strict as assert } from 'assert'; // to check the results
@@ -278,7 +340,13 @@ assert.deepEqual(employedMichael, {
 });
 ```
 
-Now for example we can fetch the related companies of all using the `get` method, even if some have null companies.
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Retrieving values with the [`.get()`](#geta-a-b) method 
+
+Now for example we can fetch the related companies of all using the [`.get()`](#geta-a-b) method, even if some have null companies.
 
 ```typescript
 const employedJohnCompany = lens(employedJohn).company.name.get();
@@ -294,40 +362,13 @@ const employedMichaelCompany = lens(employedMichael).company.name.get();
 assert.equal(employedMichaelCompany, 'Google');
 ```
 
-Aside of support for array access by index, there's also three extra operations for array types to manipulate their contents based on a given index, these are `del` to delete an item at a given index, `ins` to insert an item at a given place (without overwriting other items) and `cat` to concatenate an item at the end of the array. Let's see how they're used.
+[Back to top ↑](#proxy-lens)
 
-```typescript
-const fisherMary = lens(mary).hobbies[0].name.set('Fishing');
+---
 
-assert.deepEqual(fisherMary, {
-  name: 'Mary Sanchez',
-  hobbies: [{ name: 'Fishing' }]
-});
+### Setting values and continuing with the [`.put()`](#putb-b-proxylensa-a) method
 
-const boredMary = lens(mary)
-  .hobbies.del(0)
-  .get();
-
-assert.deepEqual(boredMary, { name: 'Mary Sanchez', hobbies: [] });
-
-const sailorMary = lens(mary)
-  .hobbies.ins(0, { name: 'Fishing' })
-  .hobbies.cat({ name: 'Boating' })
-  .hobbies.ins(1, [{ name: 'Swimming' }, { name: 'Rowing' }])
-  .get();
-
-assert.deepEqual(sailorMary, {
-  name: 'Mary Sanchez',
-  hobbies: [
-    { name: 'Fishing' },
-    { name: 'Swimming' },
-    { name: 'Rowing' },
-    { name: 'Boating' }
-  ]
-});
-```
-
-We can use the `put` method to perform sets on different slices of the parent object, at the end of the edition we can call `get` to return the parent value (otherwise we keep getting the parent lens).
+We can use the [`.put()`](#putb-b-proxylensa-a) method to perform sets on different slices of the parent object, at the end of the edition we can call [`.get()`](#geta-a-b) to return the parent value (otherwise we keep getting the parent lens).
 
 ```typescript
 const localizedEmployedJohn = lens(employedJohn)
@@ -362,19 +403,39 @@ assert.deepEqual(localizedEmployedMary, {
 });
 ```
 
-We can also use the lens methods in an abstract way, so we can pass it to higher order functions:
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Modifying lenses with the [`.mod()`](#modcget-getterb-c-set-setterb-c-proxylensa-c) method
+
+This method can be used to create modifications between two types. For example, we can create a two-way transform between objects and strings.
 
 ```typescript
-const allCompanies = [
-  localizedEmployedJohn,
-  localizedEmployedMary,
-  employedMichael
-].map(lens<Person>().company.name.get);
+const nameSplitterMod = lens<Person>().name.mod(
+  (name): { first: string; last: string } => ({
+    first: name.split(' ')[0],
+    last: name
+      .split(' ')
+      .slice(1)
+      .join(' ')
+  }),
+  ({ first, last }): string => `${first} ${last}`
+);
 
-assert.deepEqual(allCompanies, ['Apple', 'Microsoft', 'Google']);
+const johnSplitName = nameSplitterMod.get(john);
+
+assert.deepEqual(johnSplitName, { first: 'John', last: 'Wallace' });
+
+const johnIsNowRobert = nameSplitterIso.set(
+  { first: 'Robert', last: 'Wilcox' },
+  john
+);
+
+assert.deepEqual(johnIsNowRobert, { name: 'Robert Wilcox' });
 ```
 
-Lastly there are two extra utility methods, the first is named `mod` and it is used to automatically modify `get`, `set` and `put` operations.
+Or we can omit the setter function and create one-way only modification:
 
 ```typescript
 const allNamesUppercase = [
@@ -390,28 +451,101 @@ assert.deepEqual(allNamesUppercase, [
 ]);
 ```
 
-And the second is named `iso` and is used to perform two-way isomorphic modifications.
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Manipulating immutable arrays with the [`.del()`](#delindex-number-a-a-proxylensa-a), [`.ins()`](#insindex-number-b-b--b-a-a-proxylensa-a) and [`.cat()`](#catb-b--b-a-a-proxylensa-a) methods
+
+Aside of support for array access by index, there's also three extra operations for array types to manipulate their contents based on a given index, these are [`.del()`](#delindex-number-a-a-proxylensa-a) to delete an item at a given index, [`.ins()`](#insindex-number-b-b--b-a-a-proxylensa-a) to insert one or more items at a given place (without overwriting other items) and [`.cat()`](#catb-b--b-a-a-proxylensa-a) to concatenate one or more items at the end of the array. Let's see how they're used.
 
 ```typescript
-const nameSplitterIso = lens<Person>().name.iso(
-  (name: string): { first: string; last: string } => ({
-    first: name.split(' ')[0],
-    last: name
-      .split(' ')
-      .slice(1)
-      .join(' ')
-  }),
-  ({ first, last }): string => `${first} ${last}`
-);
+const fisherMary = lens(mary).hobbies[0].name.set('Fishing');
 
-const johnSplitName = nameSplitterIso.get(john);
+assert.deepEqual(fisherMary, {
+  name: 'Mary Sanchez',
+  hobbies: [{ name: 'Fishing' }]
+});
 
-assert.deepEqual(johnSplitName, { first: 'John', last: 'Wallace' });
+const boredMary = lens(mary)
+  .hobbies.del(0)
+  .get();
 
-const johnIsNowRobert = nameSplitterIso.set(
-  { first: 'Robert', last: 'Wilcox' },
-  john
-);
+assert.deepEqual(boredMary, { name: 'Mary Sanchez', hobbies: [] });
 
-assert.deepEqual(johnIsNowRobert, { name: 'Robert Wilcox' });
+const sailorMary = lens(mary)
+  .hobbies.ins(0, { name: 'Fishing' })
+  .hobbies.cat({ name: 'Boating' })
+  .hobbies.ins(1, [{ name: 'Swimming' }, { name: 'Rowing' }])
+  .get();
+
+assert.deepEqual(sailorMary, {
+  name: 'Mary Sanchez',
+  hobbies: [
+    { name: 'Fishing' },
+    { name: 'Swimming' },
+    { name: 'Rowing' },
+    { name: 'Boating' }
+  ]
+});
+```
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Using abstract lenses
+
+We can also use the lens methods in an abstract way, so we can pass it to higher order functions:
+
+```typescript
+const allCompanies = [
+  localizedEmployedJohn,
+  localizedEmployedMary,
+  employedMichael
+].map(lens<Person>().company.name.get);
+
+assert.deepEqual(allCompanies, ['Apple', 'Microsoft', 'Google']);
+```
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Recursive abstract lenses
+
+This library supports recursive types, that means we can work with generic data structures like `Json`. 
+
+```typescript
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
+
+const jsonLens = lens<Json>()
+
+assert.deepEqual(
+  jsonLens.name
+    .put('Jason Finch')
+    .hobbies[0].put({ name: 'Electronics' })
+    .company.name.put('Toshiba')
+    .company.address.set({
+      street: 'Shibaura 1-chome, 1-1',
+      city: 'Minato-ku',
+      zip: '105-8001',
+    }),
+  {
+    name: 'Jason Finch',
+    hobbies: [
+      {
+        name: 'Electronics',
+      },
+    ],
+    company: {
+      name: 'Toshiba',
+      address: {
+        street: 'Shibaura 1-chome, 1-1',
+        city: 'Minato-ku',
+        zip: '105-8001',
+      },
+    },
+  },
+)
 ```
