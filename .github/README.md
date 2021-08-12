@@ -12,20 +12,23 @@ A type safe functional lens implemented via proxy
 * [Install](#install)
 * [API](#api)
     - [`lens()`](#lens)
-    - [`.get(a?: A): B`](#geta-a-b)
-    - [`.set(b: B, a?: A): A`](#setb-b-a-a-a)
-    - [`.put(b: B): ProxyLens<A, A>`](#putb-b-proxylensa-a)
-    - [`.mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>`](#modcget-getterb-c-set-setterb-c-proxylensa-c)
-    - [`.del(index: number, a?: A): ProxyLens<A, A>`](#delindex-number-a-a-proxylensa-a)
-    - [`.ins(index: number, b: B | B[], a?: A): ProxyLens<A, A>`](#insindex-number-b-b--b-a-a-proxylensa-a)
-    - [`.cat(b: B | B[], a?: A): ProxyLens<A, A>`](#catb-b--b-a-a-proxylensa-a)
+    - [`BaseLens`](#baselens-interface)
+      + [`.get(a?: A): B`](#geta-a-b)
+      + [`.set(b: B, a?: A): A`](#setb-b-a-a-a)
+      + [`.let(b: B): ProxyLens<A, A>`](#letb-b-proxylensa-a)
+      + [`.peg(get: Getter<A, B>): ProxyLens<A, A>`](#pegget-gettera-b-proxylensa-a)
+      + [`.mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>`](#modcget-getterb-c-set-setterb-c-proxylensa-c)
+    - [`ArrayLens`](#arraylens-interface)
+      + [`.del(index: number, a?: A): ProxyLens<A, A>`](#delindex-number-a-a-proxylensa-a)
+      + [`.put(index: number, b: B | B[], a?: A): ProxyLens<A, A>`](#putindex-number-b-b--b-a-a-proxylensa-a)
 * [Usage](#usage)
     - [Setup](#setup)
     - [Setting values with the `.set()` method](#setting-values-with-the-set-method)
     - [Retrieving values with the `.get()` method](#retrieving-values-with-the-get-method)
-    - [Setting values and continuing with the `.put()` method](#setting-values-and-continuing-with-the-put-method)
+    - [Setting values and continuing with the `.let()` method](#setting-values-and-continuing-with-the-let-method)
+    - [Pegging lenses with the `.peg()` method](#pegging-lenses-with-the-peg-method)
     - [Modifying lenses with the `.mod()` method](#modifying-lenses-with-the-mod-method)
-    - [Manipulating immutable arrays with the `.del()`, `.ins()` and `.cat()` methods](#manipulating-immutable-arrays-with-the-del-ins-and-cat-methods)
+    - [Manipulating immutable arrays with the `.del()` and `.put()` methods](#manipulating-immutable-arrays-with-the-del-and-put-methods)
     - [Using abstract lenses](#using-abstract-lenses)
     - [Recursive abstract lenses](#recursive-abstract-lenses)
 
@@ -82,7 +85,8 @@ Proxy lenses provide two sets of methods for each level in the chain (including 
 type BaseLens<A, B> = {
   get(target?: A): B
   set(value: B, target?: A): A
-  put(value: B): ProxyLens<A, A>
+  let(value: B): ProxyLens<A, A>
+  peg(get: Getter<A, B>): ProxyLens<A, A>
   mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>
 }
 ```
@@ -119,26 +123,44 @@ lens<{ a: { b: string }}>().a.b.set('bye', { a: { b: 'hello' }}) // :: { a: { b:
 
 ---
 
-#### `.put(b: B): ProxyLens<A, A>`
+#### `.let(b: B): ProxyLens<A, A>`
 
 Works similarly to [`.set()`](#setb-b-a-a-a) but instead of returning the root value it returns a new lens of the root value, this way after using it other methods can be chained on it.
 
 ```typescript
 lens({ a: false, b: true })
-  .a.put(true)
-  .b.put(false).get() // :: { a: true, b: false }
+  .a.let(true)
+  .b.let(false).get() // :: { a: true, b: false }
 
 lens<{ a: boolean, b: boolean }>()
-  .a.put(true)
-  .b.put(false).get({ a: false, b: true }) // :: { a: true, b: false }
+  .a.let(true)
+  .b.let(false).get({ a: false, b: true }) // :: { a: true, b: false }
 
 lens({ a: false, b: true })
-  .a.put(true)
+  .a.let(true)
   .a.set(false) // :: { a: false, b: true } (overriden)
 
 lens<{ a: boolean, b: boolean }>()
-  .a.put(true)
+  .a.let(true)
   .a.set(false, { a: false, b: true }) // :: { a: false, b: true } (overriden)
+```
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+#### `.peg(get: Getter<A, B>): ProxyLens<A, A>`
+
+Pegs the result of a getter to the setter of a given lens. Takes a getter function and like [`.let()`](#letb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained. 
+
+```typescript
+lens({ a: false, b: true })
+  .a.peg(lens<{ a: boolean, b: boolean }>().b.get)
+  .get() // :: { a: true, b: true }
+
+lens<{ a: boolean, b: boolean }>()
+  .a.peg(lens<{ a: boolean, b: boolean }>().b.get)
+  .get({ a: false, b: true }) // :: { a: true, b: true }
 ```
 
 [Back to top ↑](#proxy-lens)
@@ -180,8 +202,7 @@ lens({ a: { b: boolean }}).mod(
 ```typescript
 type ArrayLens<A, B> = {
   del(index: number, a?: A): ProxyLens<A, A>
-  ins(index: number, b: B | B[], a?: A): ProxyLens<A, A>
-  cat(b: B | B[], a?: A): ProxyLens<A, A>
+  put(index: number, b: B | B[], a?: A): ProxyLens<A, A>
 }
 ```
 
@@ -193,7 +214,7 @@ This interface is available for lenses focused on array types.
 
 #### `.del(index: number, a?: A): ProxyLens<A, A>`
 
-Used to perform a deletion of a given array item by index. It takes the given index to delete and like [`.put()`](#putb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained.
+Used to perform a deletion of a given array item by index. It takes the given index to delete and like [`.let()`](#letb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained.
 
 ```typescript
 lens({ a: [{ b: 'delme' }] }).a.del(0).get() // :: { a: [] }
@@ -204,44 +225,34 @@ lens<{ a: { b: string }[] }>().a.del(0).get({ a: [{ b: 'delme' }] }) // :: { a: 
 
 ---
 
-#### `.ins(index: number, b: B | B[], a?: A): ProxyLens<A, A>`
+#### `.put(index: number, b: B | B[], a?: A): ProxyLens<A, A>`
 
-Used to perform a non-destructive insert of a one or more array items by index, it takes the value to insert and like [`.put()`](#putb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained.
-
-```typescript
-lens({ a: ['keep'] })
-  .a.ins(0, 'insert').get() // :: { a: ['insert', 'keep'] }
-
-lens({ a: ['keep'] })
-  .a.ins(0, ['insert', 'many']).get() // :: { a: ['insert', 'many', 'keep'] }
-
-lens<{ a: string[] }>()
-  .a.ins(0, 'insert', { a: ['keep'] }).get() // :: { a: ['insert', 'keep'] }
-
-lens<{ a: string[] }>()
-  .a.ins(0, ['insert', 'many'], { a: ['keep'] }).get() // :: { a: ['insert', 'many', 'keep'] }
-```
- 
-[Back to top ↑](#proxy-lens)
-
----
-
-#### `.cat(b: B | B[], a?: A): ProxyLens<A, A>`
-
-Used to perform a concatenation of one or more array items, it takes the value to concatenate and like [`.put()`](#putb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained.
+Used to perform a non-destructive insert of a one or more array items by index or by negative offset (`-1` being the last position and so on), it takes the value to insert and like [`.let()`](#letb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained.
 
 ```typescript
 lens({ a: ['keep'] })
-  .a.cat('concat').get() // :: { a: ['keep', 'concat'] }
+  .a.put(0, 'insert').get() // :: { a: ['insert', 'keep'] }
 
 lens({ a: ['keep'] })
-  .a.cat(['concat', 'many']).get() // :: { a: ['keep', 'concat', 'many'] }
+  .a.put(-1, 'insert').get() // :: { a: ['keep', 'insert'] }
+
+lens({ a: ['keep'] })
+  .a.put(0, ['insert', 'many']).get() // :: { a: ['insert', 'many', 'keep'] }
+
+lens({ a: ['keep'] })
+  .a.put(-1, ['insert', 'many']).get() // :: { a: ['keep', 'insert', 'many'] }
 
 lens<{ a: string[] }>()
-  .a.cat('concat', { a: ['keep'] }).get() // :: { a: ['keep', 'concat'] }
+  .a.put(0, 'insert', { a: ['keep'] }).get() // :: { a: ['insert', 'keep'] }
 
 lens<{ a: string[] }>()
-  .a.cat(['concat', 'many'], { a: ['keep'] }).get() // :: { a: ['keep', 'concat', 'many'] }
+  .a.put(-1, 'insert', { a: ['keep'] }).get() // :: { a: ['keep', 'insert'] }
+
+lens<{ a: string[] }>()
+  .a.put(0, ['insert', 'many'], { a: ['keep'] }).get() // :: { a: ['insert', 'many', 'keep'] }
+
+lens<{ a: string[] }>()
+  .a.put(-1, ['insert', 'many'], { a: ['keep'] }).get() // :: { a: ['keep', 'insert', 'many'] }
 ```
 
 [Back to top ↑](#proxy-lens)
@@ -366,14 +377,14 @@ assert.equal(employedMichaelCompany, 'Google');
 
 ---
 
-### Setting values and continuing with the [`.put()`](#putb-b-proxylensa-a) method
+### Setting values and continuing with the [`.let()`](#letb-b-proxylensa-a) method
 
-We can use the [`.put()`](#putb-b-proxylensa-a) method to perform sets on different slices of the parent object, at the end of the edition we can call [`.get()`](#geta-a-b) to return the parent value (otherwise we keep getting the parent lens).
+We can use the [`.let()`](#letb-b-proxylensa-a) method to perform sets on different slices of the parent object, at the end of the edition we can call [`.get()`](#geta-a-b) to return the parent value (otherwise we keep getting the parent lens).
 
 ```typescript
 const localizedEmployedJohn = lens(employedJohn)
-  .company.name.put('Apple')
-  .company.address.city.put('Cupertino')
+  .company.name.let('Apple')
+  .company.address.city.let('Cupertino')
   .get();
 
 assert.deepEqual(localizedEmployedJohn, {
@@ -382,8 +393,8 @@ assert.deepEqual(localizedEmployedJohn, {
 });
 
 const localizedEmployedMary = lens(mary)
-  .company.name.put('Microsoft')
-  .company.address.put({
+  .company.name.let('Microsoft')
+  .company.address.let({
     city: 'Redmond',
     street: { name: '15010 NE 36th St' },
     zip: 98052
@@ -401,6 +412,25 @@ assert.deepEqual(localizedEmployedMary, {
     }
   }
 });
+```
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Pegging lenses with the [`.peg()`](#pegget-gettera-b-proxylensa-a) method
+
+Sometimes we want a lens to depend on other lens, an easy way to do this is to use the [`.peg()`](#pegget-gettera-b-proxylensa-a) method, where we can pass another lens getter to set the value of the first one.
+
+```typescript
+const selfEmployedJohn = lens(john)
+  .company.name.peg(lens<Person>().name.mod((name) => `${name} Inc.`).get)
+  .get()
+
+assert.deepEqual(selfEmployedJohn, {
+  name: 'John Wallace',
+  company: { name: 'John Wallace Inc.' },
+})
 ```
 
 [Back to top ↑](#proxy-lens)
@@ -455,9 +485,9 @@ assert.deepEqual(allNamesUppercase, [
 
 ---
 
-### Manipulating immutable arrays with the [`.del()`](#delindex-number-a-a-proxylensa-a), [`.ins()`](#insindex-number-b-b--b-a-a-proxylensa-a) and [`.cat()`](#catb-b--b-a-a-proxylensa-a) methods
+### Manipulating immutable arrays with the [`.del()`](#delindex-number-a-a-proxylensa-a) and [`.put()`](#putindex-number-b-b--b-a-a-proxylensa-a) methods
 
-Aside of support for array access by index, there's also three extra operations for array types to manipulate their contents based on a given index, these are [`.del()`](#delindex-number-a-a-proxylensa-a) to delete an item at a given index, [`.ins()`](#insindex-number-b-b--b-a-a-proxylensa-a) to insert one or more items at a given place (without overwriting other items) and [`.cat()`](#catb-b--b-a-a-proxylensa-a) to concatenate one or more items at the end of the array. Let's see how they're used.
+Aside of support for array access by index, there's also three extra operations for array types to manipulate their contents based on a given index, these are [`.del()`](#delindex-number-a-a-proxylensa-a) to delete an item at a given index and [`.put()`](#putindex-number-b-b--b-a-a-proxylensa-a) to insert one or more items at a given place (without overwriting other items). Let's see how they're used.
 
 ```typescript
 const fisherMary = lens(mary).hobbies[0].name.set('Fishing');
@@ -474,9 +504,9 @@ const boredMary = lens(mary)
 assert.deepEqual(boredMary, { name: 'Mary Sanchez', hobbies: [] });
 
 const sailorMary = lens(mary)
-  .hobbies.ins(0, { name: 'Fishing' })
-  .hobbies.cat({ name: 'Boating' })
-  .hobbies.ins(1, [{ name: 'Swimming' }, { name: 'Rowing' }])
+  .hobbies.put(0, { name: 'Fishing' })
+  .hobbies.put(-1, { name: 'Boating' })
+  .hobbies.put(1, [{ name: 'Swimming' }, { name: 'Rowing' }])
   .get();
 
 assert.deepEqual(sailorMary, {
@@ -523,9 +553,9 @@ const jsonLens = lens<Json>()
 
 assert.deepEqual(
   jsonLens.name
-    .put('Jason Finch')
-    .hobbies[0].put({ name: 'Electronics' })
-    .company.name.put('Toshiba')
+    .let('Jason Finch')
+    .hobbies[0].let({ name: 'Electronics' })
+    .company.name.let('Toshiba')
     .company.address.set({
       street: 'Shibaura 1-chome, 1-1',
       city: 'Minato-ku',

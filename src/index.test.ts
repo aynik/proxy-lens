@@ -104,51 +104,51 @@ describe('set', () => {
   })
 })
 
-describe('put', () => {
-  it('puts two nested values', () => {
+describe('let', () => {
+  it('lets two nested values', () => {
     const source: { a: { b: { c: boolean }; d: { e: { f: boolean } } } } = {
       a: { b: { c: false }, d: { e: { f: false } } },
     }
-    expect(lens(source).a.b.c.put(true).a.d.e.f.put(true).get()).toMatchObject({
+    expect(lens(source).a.b.c.let(true).a.d.e.f.let(true).get()).toMatchObject({
       a: { b: { c: true }, d: { e: { f: true } } },
     })
   })
 
-  it('puts two nested values via undefined', () => {
+  it('lets two nested values via undefined', () => {
     const source: {
       a?: { b?: { c?: boolean }; d?: { e?: { f?: boolean } } }
     } = {}
-    expect(lens(source).a.b.c.put(true).a.d.e.f.put(true).get()).toMatchObject({
+    expect(lens(source).a.b.c.let(true).a.d.e.f.let(true).get()).toMatchObject({
       a: { b: { c: true }, d: { e: { f: true } } },
     })
   })
 
-  it('puts two nested undefined values via null', () => {
+  it('lets two nested undefined values via null', () => {
     const source: {
       a: {
         b: { c: boolean | null } | null
         d: { e: { f: boolean | null } | null } | null
       } | null
     } = { a: null }
-    expect(lens(source).a.b.c.put(true).a.d.e.f.put(true).get()).toMatchObject({
+    expect(lens(source).a.b.c.let(true).a.d.e.f.let(true).get()).toMatchObject({
       a: { b: { c: true }, d: { e: { f: true } } },
     })
   })
 
-  it('puts two nested values via array index', () => {
+  it('lets two nested values via array index', () => {
     const source: {
       a: { b: readonly { c: boolean }[]; d: { e: { f: boolean }[] } }
     } = {
       a: { b: [{ c: false }], d: { e: [{ f: false }] } },
     }
     expect(
-      lens(source).a.b[0].c.put(true).a.d.e[0].f.put(true).get(),
+      lens(source).a.b[0].c.let(true).a.d.e[0].f.let(true).get(),
     ).toMatchObject({
       a: { b: [{ c: true }], d: { e: [{ f: true }] } },
     })
   })
 
-  it('puts two nested undefined values via array index', () => {
+  it('lets two nested undefined values via array index', () => {
     const source: {
       a: {
         b: readonly { c: boolean | null }[] | null
@@ -156,35 +156,123 @@ describe('put', () => {
       } | null
     } = { a: null }
     expect(
-      lens(source).a.b[0].c.put(true).a.d.e[0].f.put(true).get(),
+      lens(source).a.b[0].c.let(true).a.d.e[0].f.let(true).get(),
     ).toMatchObject({
       a: { b: [{ c: true }], d: { e: [{ f: true }] } },
     })
   })
 
-  it('puts two nested values using abstract lens', () => {
+  it('lets two nested values using abstract lens', () => {
     const source = { a: { b: { c: false }, d: { e: { f: false } } } }
     expect(
       lens<{ a: { b: { c: boolean }; d: { e: { f: boolean } } } }>()
-        .a.b.c.put(true)
-        .a.d.e.f.put(true)
+        .a.b.c.let(true)
+        .a.d.e.f.let(true)
         .get(source),
     ).toMatchObject({
       a: { b: { c: true }, d: { e: { f: true } } },
     })
   })
 
-  it('puts two nested values using abstract lens via array index', () => {
+  it('lets two nested values using abstract lens via array index', () => {
     const source = { a: { b: [{ c: false }], d: { e: [{ f: false }] } } }
     expect(
       lens<{
         a: { b: readonly { c: boolean }[]; d: { e: readonly { f: boolean }[] } }
       }>()
-        .a.b[0].c.put(true)
-        .a.d.e[0].f.put(true)
+        .a.b[0].c.let(true)
+        .a.d.e[0].f.let(true)
         .get(source),
     ).toMatchObject({
       a: { b: [{ c: true }], d: { e: [{ f: true }] } },
+    })
+  })
+})
+
+describe('peg', () => {
+  it('pegs a sibling value', () => {
+    const source: { a: { c: boolean }; b: boolean } = {
+      a: { c: false },
+      b: true,
+    }
+    expect(
+      lens(source).a.c.peg(lens<typeof source>().b.get).get(),
+    ).toMatchObject({
+      a: { c: true },
+      b: true,
+    })
+  })
+
+  it('pegs a sibling value via undefined', () => {
+    const source: { a?: { c?: boolean }; b: boolean } = { b: true }
+    expect(
+      lens(source).a.c.peg(lens<typeof source>().b.get).get(),
+    ).toMatchObject({
+      a: { c: true },
+      b: true,
+    })
+  })
+
+  it('pegs a sibling value via null', () => {
+    const source: { a: { c: boolean | null } | null; b: boolean } = {
+      a: null,
+      b: true,
+    }
+    expect(
+      lens(source).a.c.peg(lens<typeof source>().b.get).get(),
+    ).toMatchObject({
+      a: { c: true },
+      b: true,
+    })
+  })
+
+  it('pegs a sibling value via array index', () => {
+    const source: { a?: { c?: boolean }[]; b: boolean } = { b: true }
+    expect(
+      lens(source).a[0].c.peg(lens<typeof source>().b.get).get(),
+    ).toMatchObject({
+      a: [{ c: true }],
+      b: true,
+    })
+  })
+
+  it('pegs a sibling undefined value via array index', () => {
+    const source: { a?: { c?: boolean }[]; b: boolean } = { b: true }
+    expect(
+      lens(source).a[0].c.peg(lens<typeof source>().b.get).get(),
+    ).toMatchObject({
+      a: [{ c: true }],
+      b: true,
+    })
+  })
+
+  it('pegs a sibling value using abstract lens', () => {
+    const source = {
+      a: { c: false },
+      b: true,
+    }
+    expect(
+      lens<{ a: { c: boolean }; b: boolean }>()
+        .a.c.peg(lens<typeof source>().b.get)
+        .get(source),
+    ).toMatchObject({
+      a: { c: true },
+      b: true,
+    })
+  })
+
+  it('pegs a nested value using abstract lens via array', () => {
+    const source = {
+      a: [{ c: false }],
+      b: true,
+    }
+    expect(
+      lens<{ a: { c: boolean }[]; b: boolean }>()
+        .a[0].c.peg(lens<typeof source>().b.get)
+        .get(source),
+    ).toMatchObject({
+      a: [{ c: true }],
+      b: true,
     })
   })
 })
@@ -473,7 +561,7 @@ describe('mod (two-way)', () => {
   })
 })
 
-describe('del', () => {
+describe('del (positive index)', () => {
   it('deletes a nested item', () => {
     const source: { a: { b: { c: string }[] } } = {
       a: { b: [{ c: 'delme' }] },
@@ -504,45 +592,76 @@ describe('del', () => {
   })
 })
 
-describe('ins', () => {
-  it('inserts a nested item', () => {
+describe('del (negative index)', () => {
+  it('deletes a nested item in a negative position', () => {
+    const source: { a: { b: { c: string }[] } } = {
+      a: { b: [{ c: 'notouch' }, { c: 'delme' }] },
+    }
+    expect(lens(source).a.b.del(-1).get()).toMatchObject({
+      a: { b: [{ c: 'notouch' }] },
+    })
+  })
+
+  it('deletes a nested undefined item in a negative position', () => {
+    const source: { a: { b: { c: string }[] | null } | null } = {
+      a: null,
+    }
+    expect(lens(source).a.b.del(-1).get()).toMatchObject({
+      a: { b: [] },
+    })
+  })
+
+  it('deletes a nested item in a negative position using abstract lens', () => {
+    const source = {
+      a: { b: [{ c: 'notouch' }, { c: 'delme' }] },
+    }
+    expect(
+      lens<{ a: { b: { c: string }[] } }>().a.b.del(-1, source).get(),
+    ).toMatchObject({
+      a: { b: [{ c: 'notouch' }] },
+    })
+  })
+})
+
+describe('put (positive index)', () => {
+  it('puts a nested item', () => {
     const source: { a: { b: { c: string }[] } } = {
       a: { b: [{ c: 'notouch' }] },
     }
-    expect(lens(source).a.b.ins(0, { c: 'insert' }).get()).toMatchObject({
+    expect(lens(source).a.b.put(0, { c: 'insert' }).get()).toMatchObject({
       a: { b: [{ c: 'insert' }, { c: 'notouch' }] },
     })
   })
 
-  it('inserts many nested items', () => {
+  it('puts many nested items', () => {
     const source: { a: { b: { c: string }[] } } = {
       a: { b: [{ c: 'notouch' }] },
     }
     expect(
       lens(source)
-        .a.b.ins(0, [{ c: 'insert' }, { c: 'many' }])
+        .a.b.put(0, [{ c: 'insert' }, { c: 'many' }])
         .get(),
     ).toMatchObject({
       a: { b: [{ c: 'insert' }, { c: 'many' }, { c: 'notouch' }] },
     })
   })
 
-  it('inserts a nested item via null', () => {
+  it('puts a nested item via null', () => {
     const source: { a: { b: { c: string }[] | null } | null } = {
       a: null,
     }
-    expect(lens(source).a.b.ins(0, { c: 'insert' }).get()).toMatchObject({
+    expect(lens(source).a.b.put(0, { c: 'insert' }).get()).toMatchObject({
       a: { b: [{ c: 'insert' }] },
     })
   })
 
-  it('inserts a nested item using abstract lens', () => {
+  it('puts a nested item using abstract lens', () => {
     const source = {
       a: { b: [{ c: 'notouch' }] },
     }
     expect(
       lens<{ a: { b: { c: string }[] } }>()
-        .a.b.ins(0, { c: 'insert' }, source)
+        .a.b.put(0, { c: 'insert' }, source)
         .get(),
     ).toMatchObject({
       a: { b: [{ c: 'insert' }, { c: 'notouch' }] },
@@ -550,48 +669,48 @@ describe('ins', () => {
   })
 })
 
-describe('cat', () => {
-  it('concats a nested item', () => {
+describe('put (negative index)', () => {
+  it('puts a nested item in a negative position', () => {
     const source: { a: { b: { c: string }[] } } = {
       a: { b: [{ c: 'notouch' }] },
     }
-    expect(lens(source).a.b.cat({ c: 'concat' }).get()).toMatchObject({
-      a: { b: [{ c: 'notouch' }, { c: 'concat' }] },
+    expect(lens(source).a.b.put(-1, { c: 'insert' }).get()).toMatchObject({
+      a: { b: [{ c: 'notouch' }, { c: 'insert' }] },
     })
   })
 
-  it('concats many nested items', () => {
+  it('puts many nested items in a negative position', () => {
     const source: { a: { b: { c: string }[] } } = {
       a: { b: [{ c: 'notouch' }] },
     }
     expect(
       lens(source)
-        .a.b.cat([{ c: 'concat' }, { c: 'many' }])
+        .a.b.put(-1, [{ c: 'insert' }, { c: 'many' }])
         .get(),
     ).toMatchObject({
-      a: { b: [{ c: 'notouch' }, { c: 'concat' }, { c: 'many' }] },
+      a: { b: [{ c: 'notouch' }, { c: 'insert' }, { c: 'many' }] },
     })
   })
 
-  it('concats a nested item via null', () => {
+  it('puts a nested item in a negative position via null', () => {
     const source: { a: { b: { c: string }[] | null } | null } = {
       a: null,
     }
-    expect(lens(source).a.b.cat({ c: 'concat' }).get()).toMatchObject({
-      a: { b: [{ c: 'concat' }] },
+    expect(lens(source).a.b.put(-1, { c: 'insert' }).get()).toMatchObject({
+      a: { b: [{ c: 'insert' }] },
     })
   })
 
-  it('concats a nested item using abstract lens', () => {
+  it('puts a nested item in a negative position using abstract lens', () => {
     const source = {
       a: { b: [{ c: 'notouch' }] },
     }
     expect(
       lens<{ a: { b: { c: string }[] } }>()
-        .a.b.cat({ c: 'concat' }, source)
+        .a.b.put(-1, { c: 'insert' }, source)
         .get(),
     ).toMatchObject({
-      a: { b: [{ c: 'notouch' }, { c: 'concat' }] },
+      a: { b: [{ c: 'notouch' }, { c: 'insert' }] },
     })
   })
 })

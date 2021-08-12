@@ -81,9 +81,9 @@ const boredMary = lens(mary).hobbies.del(0).get()
 assert.deepEqual(boredMary, { name: 'Mary Sanchez', hobbies: [] })
 
 const sailorMary = lens(mary)
-  .hobbies.ins(0, { name: 'Fishing' })
-  .hobbies.cat({ name: 'Boating' })
-  .hobbies.ins(1, [{ name: 'Swimming' }, { name: 'Rowing' }])
+  .hobbies.put(0, { name: 'Fishing' })
+  .hobbies.put(-1, { name: 'Boating' })
+  .hobbies.put(1, [{ name: 'Swimming' }, { name: 'Rowing' }])
   .get()
 
 assert.deepEqual(sailorMary, {
@@ -97,8 +97,8 @@ assert.deepEqual(sailorMary, {
 })
 
 const localizedEmployedJohn = lens(employedJohn)
-  .company.name.put('Apple')
-  .company.address.city.put('Cupertino')
+  .company.name.let('Apple')
+  .company.address.city.let('Cupertino')
   .get()
 
 assert.deepEqual(localizedEmployedJohn, {
@@ -107,13 +107,12 @@ assert.deepEqual(localizedEmployedJohn, {
 })
 
 const localizedEmployedMary = lens(mary)
-  .company.name.put('Microsoft')
-  .company.address.put({
+  .company.name.let('Microsoft')
+  .company.address.set({
     city: 'Redmond',
     street: { name: '15010 NE 36th St' },
     zip: 98052,
   })
-  .get()
 
 assert.deepEqual(localizedEmployedMary, {
   name: 'Mary Sanchez',
@@ -135,7 +134,16 @@ const allCompanies = [
 
 assert.deepEqual(allCompanies, ['Apple', 'Microsoft', 'Google'])
 
-const nameSplitterIso = lens<Person>().name.mod(
+const selfEmployedJohn = lens(john)
+  .company.name.peg(lens<Person>().name.mod((name) => `${name} Inc.`).get)
+  .get()
+
+assert.deepEqual(selfEmployedJohn, {
+  name: 'John Wallace',
+  company: { name: 'John Wallace Inc.' },
+})
+
+const nameSplitterMod = lens<Person>().name.mod(
   (name): { first: string; last: string } => ({
     first: name.split(' ')[0],
     last: name.split(' ').slice(1).join(' '),
@@ -143,11 +151,11 @@ const nameSplitterIso = lens<Person>().name.mod(
   ({ first, last }): string => `${first} ${last}`,
 )
 
-const johnSplitName = nameSplitterIso.get(john)
+const johnSplitName = nameSplitterMod.get(john)
 
 assert.deepEqual(johnSplitName, { first: 'John', last: 'Wallace' })
 
-const johnIsNowRobert = nameSplitterIso.set(
+const johnIsNowRobert = nameSplitterMod.set(
   { first: 'Robert', last: 'Wilcox' },
   john,
 )
@@ -172,9 +180,9 @@ const jsonLens = lens<Json>()
 
 assert.deepEqual(
   jsonLens.name
-    .put('Jason Finch')
-    .hobbies[0].put({ name: 'Electronics' })
-    .company.name.put('Toshiba')
+    .let('Jason Finch')
+    .hobbies[0].let({ name: 'Electronics' })
+    .company.name.let('Toshiba')
     .company.address.set({
       street: 'Shibaura 1-chome, 1-1',
       city: 'Minato-ku',
