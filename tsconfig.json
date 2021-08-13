@@ -2,7 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "outDir": "dist",
-    "target": "es6",
+    "target": "es5",
     "module": "commonjs",
     "allowJs": false,
     "skipLibCheck": true,
@@ -13,7 +13,8 @@
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
     "alwaysStrict": true,
-    "declaration": true
+    "declaration": true,
+    "sourceMap": true
   },
   "include": ["src/index.ts"],
   "exclude": ["node_modules", "coverage"]

@@ -190,86 +190,151 @@ describe('let', () => {
 })
 
 describe('peg', () => {
-  it('pegs a sibling value', () => {
+  it('gets a pegged sibling value', () => {
     const source: { a: { c: boolean }; b: boolean } = {
       a: { c: false },
       b: true,
     }
-    expect(
-      lens(source).a.c.peg(lens<typeof source>().b.get).get(),
-    ).toMatchObject({
-      a: { c: true },
-      b: true,
-    })
+    expect(lens(source).a.c.peg(lens<typeof source>().b).a.c.get()).toEqual(
+      true,
+    )
   })
 
-  it('pegs a sibling value via undefined', () => {
-    const source: { a?: { c?: boolean }; b: boolean } = { b: true }
-    expect(
-      lens(source).a.c.peg(lens<typeof source>().b.get).get(),
-    ).toMatchObject({
-      a: { c: true },
-      b: true,
-    })
+  it('gets a pegged sibling value via undefined', () => {
+    const source: { a?: { c?: boolean }; b?: boolean } = { b: true }
+    expect(lens(source).a.c.peg(lens<typeof source>().b).a.c.get()).toEqual(
+      true,
+    )
   })
 
-  it('pegs a sibling value via null', () => {
-    const source: { a: { c: boolean | null } | null; b: boolean } = {
+  it('gets a pegged sibling value via null', () => {
+    const source: { a: { c: boolean | null } | null; b: boolean | null } = {
       a: null,
       b: true,
     }
-    expect(
-      lens(source).a.c.peg(lens<typeof source>().b.get).get(),
-    ).toMatchObject({
-      a: { c: true },
-      b: true,
-    })
+    expect(lens(source).a.c.peg(lens<typeof source>().b).a.c.get()).toEqual(
+      true,
+    )
   })
 
-  it('pegs a sibling value via array index', () => {
-    const source: { a?: { c?: boolean }[]; b: boolean } = { b: true }
+  it('gets a pegged sibling value via array index', () => {
+    const source: { a?: { c?: boolean }[]; b?: boolean } = { b: true }
     expect(
-      lens(source).a[0].c.peg(lens<typeof source>().b.get).get(),
-    ).toMatchObject({
-      a: [{ c: true }],
-      b: true,
-    })
+      lens(source).a[0].c.peg(lens<typeof source>().b).a[0].c.get(),
+    ).toEqual(true)
   })
 
-  it('pegs a sibling undefined value via array index', () => {
-    const source: { a?: { c?: boolean }[]; b: boolean } = { b: true }
+  it('gets a pegged sibling undefined value via array index', () => {
+    const source: { a?: { c?: boolean }[]; b?: boolean } = { b: true }
     expect(
-      lens(source).a[0].c.peg(lens<typeof source>().b.get).get(),
-    ).toMatchObject({
-      a: [{ c: true }],
-      b: true,
-    })
+      lens(source).a[0].c.peg(lens<typeof source>().b).a[0].c.get(),
+    ).toEqual(true)
   })
 
-  it('pegs a sibling value using abstract lens', () => {
+  it('gets a pegged sibling value using abstract lens', () => {
     const source = {
       a: { c: false },
       b: true,
     }
     expect(
       lens<{ a: { c: boolean }; b: boolean }>()
-        .a.c.peg(lens<typeof source>().b.get)
-        .get(source),
-    ).toMatchObject({
-      a: { c: true },
-      b: true,
-    })
+        .a.c.peg(lens<{ a: { c: boolean }; b: boolean }>().b)
+        .a.c.get(source),
+    ).toEqual(true)
   })
 
-  it('pegs a nested value using abstract lens via array', () => {
+  it('gets a pegged nested value using abstract lens via array', () => {
     const source = {
       a: [{ c: false }],
       b: true,
     }
     expect(
       lens<{ a: { c: boolean }[]; b: boolean }>()
-        .a[0].c.peg(lens<typeof source>().b.get)
-        .get(source),
+        .a[0].c.peg(lens<{ a: { c: boolean }[]; b: boolean }>().b)
+        .a[0].c.get(source),
+    ).toEqual(true)
+  })
+
+  it('sets a pegged sibling value', () => {
+    const source: { a: { c: boolean }; b: boolean } = {
+      a: { c: false },
+      b: false,
+    }
+    expect(
+      lens(source).a.c.peg(lens<typeof source>().b).b.set(true),
+    ).toMatchObject({
+      a: { c: true },
+      b: true,
+    })
+  })
+
+  it('sets a pegged sibling value via undefined', () => {
+    const source: { a?: { c?: boolean }; b?: boolean } = {}
+    expect(
+      lens(source).a.c.peg(lens<typeof source>().b).b.set(true),
+    ).toMatchObject({
+      a: { c: true },
+      b: true,
+    })
+  })
+
+  it('sets a pegged sibling value via null', () => {
+    const source: { a: { c: boolean | null } | null; b: boolean | null } = {
+      a: null,
+      b: null,
+    }
+    expect(
+      lens(source).a.c.peg(lens<typeof source>().b).b.set(true),
+    ).toMatchObject({
+      a: { c: true },
+      b: true,
+    })
+  })
+
+  it('sets a pegged sibling value via array index', () => {
+    const source: { a?: { c?: boolean }[]; b?: boolean } = {}
+    expect(
+      lens(source).a[0].c.peg(lens<typeof source>().b).b.set(true),
+    ).toMatchObject({
+      a: [{ c: true }],
+      b: true,
+    })
+  })
+
+  it('sets a pegged sibling undefined value via array index', () => {
+    const source: { a?: { c?: boolean }[]; b?: boolean } = {}
+    expect(
+      lens(source).a[0].c.peg(lens<typeof source>().b).b.set(true),
+    ).toMatchObject({
+      a: [{ c: true }],
+      b: true,
+    })
+  })
+
+  it('sets a pegged sibling value using abstract lens', () => {
+    const source = {
+      a: { c: false },
+      b: true,
+    }
+    expect(
+      lens<{ a: { c: boolean }; b: boolean }>()
+        .a.c.peg(lens<{ a: { c: boolean }; b: boolean }>().b)
+        .set(source),
+    ).toMatchObject({
+      a: { c: true },
+      b: true,
+    })
+  })
+
+  it('sets a pegged nested value using abstract lens via array', () => {
+    const source = {
+      a: [{ c: false }],
+      b: true,
+    }
+    expect(
+      lens<{ a: { c: boolean }[]; b: boolean }>()
+        .a[0].c.peg(lens<{ a: { c: boolean }[]; b: boolean }>().b)
+        .set(source),
     ).toMatchObject({
       a: [{ c: true }],
       b: true,
@@ -277,48 +342,60 @@ describe('peg', () => {
   })
 })
 
-describe('mod (one-way)', () => {
-  it('gets an one-way mod from a nested value', () => {
+describe('mod', () => {
+  it('gets a mod from a nested value', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
     expect(
       lens(source)
-        .a.b.c.mod((flag: boolean): boolean => !flag)
+        .a.b.c.mod({
+          get: (flag: boolean): string => String(flag),
+          set: (str: string): boolean => str === 'true',
+        })
         .get(),
-    ).toEqual(false)
+    ).toEqual('true')
   })
 
-  it('gets an one-way mod from a nested undefined value via undefined', () => {
+  it('gets a mod from a nested undefined value via undefined', () => {
     const source: { a?: { b?: { c?: boolean } } } = {}
     expect(
       lens(source)
-        .a.b.c.mod((flag?: boolean): boolean => !flag)
+        .a.b.c.mod({
+          get: (flag?: boolean): string => String(!!flag),
+          set: (str: string): boolean => str === 'true',
+        })
         .get(),
-    ).toEqual(true)
+    ).toEqual('false')
   })
 
-  it('gets an one-way mod from a nested undefined value via null', () => {
+  it('gets a mod from a nested undefined value via null', () => {
     const source: { a: { b: { c: boolean | null } | null } | null } = {
       a: null,
     }
     expect(
       lens(source)
-        .a.b.c.mod((flag: boolean | null): boolean => !flag)
+        .a.b.c.mod({
+          get: (flag: boolean | null): string => String(!!flag),
+          set: (str: string): boolean => str === 'true',
+        })
         .get(),
-    ).toEqual(true)
+    ).toEqual('false')
   })
 
-  it('gets an one-way mod from a nested value via array index', () => {
+  it('gets a mod from a nested value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] } } = {
       a: { b: [{ c: true }] },
     }
     expect(
       lens(source)
-        .a.b[0].c.mod((flag: boolean): boolean => !flag)
+        .a.b[0].c.mod({
+          get: (flag: boolean): string => String(flag),
+          set: (str: string): boolean => str === 'true',
+        })
         .get(),
-    ).toEqual(false)
+    ).toEqual('true')
   })
 
-  it('gets an one-way mod from a nested undefined value via array index', () => {
+  it('gets a mod from a nested undefined value via array index', () => {
     const source: {
       a: { b: readonly { c: boolean | null }[] | null } | null
     } = {
@@ -326,95 +403,99 @@ describe('mod (one-way)', () => {
     }
     expect(
       lens(source)
-        .a.b[0].c.mod((flag: boolean | null): boolean => !flag)
+        .a.b[0].c.mod({
+          get: (flag: boolean | null): string => String(!!flag),
+          set: (str: string): boolean => str === 'true',
+        })
         .get(),
-    ).toEqual(true)
+    ).toEqual('false')
   })
 
-  it('gets an one-way mod from a nested value using abstract lens', () => {
+  it('gets a mod from a nested value using abstract lens', () => {
     const source = { a: { b: { c: true } } }
     expect(
       lens<{ a: { b: { c: boolean } } }>()
-        .a.b.c.mod((flag: boolean): boolean => !flag)
+        .a.b.c.mod({
+          get: (flag: boolean): string => String(flag),
+          set: (str: string): boolean => str === 'true',
+        })
         .get(source),
-    ).toEqual(false)
+    ).toEqual('true')
   })
 
-  it('gets an one-way mod from a nested value using abstract lens via array index', () => {
+  it('gets a mod from a nested value using abstract lens via array index', () => {
     const source = { a: { b: [{ c: true }] } }
     expect(
       lens<{ a: { b: readonly { c: boolean }[] } }>()
-        .a.b[0].c.mod((flag: boolean): boolean => !flag)
+        .a.b[0].c.mod({
+          get: (flag: boolean): string => String(flag),
+          set: (str: string): boolean => str === 'true',
+        })
         .get(source),
-    ).toEqual(false)
+    ).toEqual('true')
   })
 
-  it('sets an one-way mod to no effect', () => {
+  it('sets a mod from a nested value', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
     expect(
       lens(source)
-        .a.b.c.mod((flag: boolean): boolean => !flag)
-        .set(false),
+        .a.b.c.mod({
+          get: (flag: boolean): string => String(!!flag),
+          set: (str: string): boolean => str === 'true',
+        })
+        .set('true'),
     ).toMatchObject({
       a: { b: { c: true } },
     })
   })
-})
 
-describe('mod (two-way)', () => {
-  it('gets a two-way mod from a nested value', () => {
-    const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
-    expect(
-      lens(source)
-        .a.b.c.mod(
-          (flag: boolean): string => String(flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(),
-    ).toEqual('true')
-  })
-
-  it('gets a two-way mod from a nested undefined value via undefined', () => {
+  it('sets a mod from a nested undefined value via undefined', () => {
     const source: { a?: { b?: { c?: boolean } } } = {}
     expect(
       lens(source)
-        .a.b.c.mod(
-          (flag?: boolean): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(),
-    ).toEqual('false')
+        .a.b.c.mod({
+          get: (flag?: boolean): string => String(!!flag),
+          set: (str: string): boolean => str === 'true',
+        })
+        .set('true'),
+    ).toMatchObject({
+      a: { b: { c: true } },
+    })
   })
 
-  it('gets a two-way mod from a nested undefined value via null', () => {
+  it('sets a mod from a nested undefined value via null', () => {
     const source: { a: { b: { c: boolean | null } | null } | null } = {
       a: null,
     }
     expect(
       lens(source)
-        .a.b.c.mod(
-          (flag: boolean | null): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(),
-    ).toEqual('false')
+        .a.b.c.mod({
+          get: (flag: boolean | null): string => String(!!flag),
+          set: (str: string): boolean => str === 'true',
+        })
+        .set('true'),
+    ).toMatchObject({
+      a: { b: { c: true } },
+    })
   })
 
-  it('gets a two-way mod from a nested value via array index', () => {
+  it('sets a mod from a nested value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] } } = {
       a: { b: [{ c: true }] },
     }
     expect(
       lens(source)
-        .a.b[0].c.mod(
-          (flag: boolean): string => String(flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(),
-    ).toEqual('true')
+        .a.b[0].c.mod({
+          get: (flag: boolean): string => String(!!flag),
+          set: (str: string): boolean => str === 'true',
+        })
+        .set('true'),
+    ).toMatchObject({
+      a: { b: [{ c: true }] },
+    })
   })
 
-  it('gets a two-way mod from a nested undefined value via array index', () => {
+  it('sets a mod from a nested undefined value via array index', () => {
     const source: {
       a: { b: readonly { c: boolean | null }[] | null } | null
     } = {
@@ -422,138 +503,38 @@ describe('mod (two-way)', () => {
     }
     expect(
       lens(source)
-        .a.b[0].c.mod(
-          (flag: boolean | null): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(),
-    ).toEqual('false')
+        .a.b[0].c.mod({
+          get: (flag: boolean | null): string => String(!!flag),
+          set: (str: string): boolean => str === 'true',
+        })
+        .set('true'),
+    ).toMatchObject({
+      a: { b: [{ c: true }] },
+    })
   })
 
-  it('gets a two-way mod from a nested value using abstract lens', () => {
+  it('sets a mod from a nested value using abstract lens', () => {
     const source = { a: { b: { c: true } } }
     expect(
       lens<{ a: { b: { c: boolean } } }>()
-        .a.b.c.mod(
-          (flag: boolean): string => String(flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(source),
-    ).toEqual('true')
-  })
-
-  it('gets a two-way mod from a nested value using abstract lens via array index', () => {
-    const source = { a: { b: [{ c: true }] } }
-    expect(
-      lens<{ a: { b: readonly { c: boolean }[] } }>()
-        .a.b[0].c.mod(
-          (flag: boolean): string => String(flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(source),
-    ).toEqual('true')
-  })
-
-  it('sets a two-way mod from a nested value', () => {
-    const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
-    expect(
-      lens(source)
-        .a.b.c.mod(
-          (flag: boolean): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
-        .set('true'),
-    ).toMatchObject({
-      a: { b: { c: true } },
-    })
-  })
-
-  it('sets a two-way mod from a nested undefined value via undefined', () => {
-    const source: { a?: { b?: { c?: boolean } } } = {}
-    expect(
-      lens(source)
-        .a.b.c.mod(
-          (flag?: boolean): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
-        .set('true'),
-    ).toMatchObject({
-      a: { b: { c: true } },
-    })
-  })
-
-  it('sets a two-way mod from a nested undefined value via null', () => {
-    const source: { a: { b: { c: boolean | null } | null } | null } = {
-      a: null,
-    }
-    expect(
-      lens(source)
-        .a.b.c.mod(
-          (flag: boolean | null): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
-        .set('true'),
-    ).toMatchObject({
-      a: { b: { c: true } },
-    })
-  })
-
-  it('sets a two-way mod from a nested value via array index', () => {
-    const source: { a: { b: readonly { c: boolean }[] } } = {
-      a: { b: [{ c: true }] },
-    }
-    expect(
-      lens(source)
-        .a.b[0].c.mod(
-          (flag: boolean): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
-        .set('true'),
-    ).toMatchObject({
-      a: { b: [{ c: true }] },
-    })
-  })
-
-  it('sets a two-way mod from a nested undefined value via array index', () => {
-    const source: {
-      a: { b: readonly { c: boolean | null }[] | null } | null
-    } = {
-      a: null,
-    }
-    expect(
-      lens(source)
-        .a.b[0].c.mod(
-          (flag: boolean | null): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
-        .set('true'),
-    ).toMatchObject({
-      a: { b: [{ c: true }] },
-    })
-  })
-
-  it('sets a two-way mod from a nested value using abstract lens', () => {
-    const source = { a: { b: { c: true } } }
-    expect(
-      lens<{ a: { b: { c: boolean } } }>()
-        .a.b.c.mod(
-          (flag: boolean): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
+        .a.b.c.mod({
+          get: (flag: boolean): string => String(!!flag),
+          set: (str: string): boolean => str === 'true',
+        })
         .set('true', source),
     ).toMatchObject({
       a: { b: { c: true } },
     })
   })
 
-  it('sets a two-way mod from a nested value using abstract lens via array index', () => {
+  it('sets a mod from a nested value using abstract lens via array index', () => {
     const source = { a: { b: [{ c: true }] } }
     expect(
       lens<{ a: { b: readonly { c: boolean }[] } }>()
-        .a.b[0].c.mod(
-          (flag: boolean): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
+        .a.b[0].c.mod({
+          get: (flag: boolean): string => String(!!flag),
+          set: (str: string): boolean => str === 'true',
+        })
         .set('true', source),
     ).toMatchObject({
       a: { b: [{ c: true }] },
