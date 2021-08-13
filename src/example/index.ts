@@ -1,3 +1,5 @@
+// Setup
+
 import { strict as assert } from 'assert'
 import { lens } from '..'
 
@@ -38,6 +40,8 @@ const michael: Person = {
   name: 'Michael Collins',
 }
 
+// Setting values with the `.set()` method
+
 const employedJohn = lens(john).company.set({
   name: 'Microsoft',
   address: { city: 'Redmond' },
@@ -57,6 +61,8 @@ assert.deepEqual(employedMichael, {
   company: { name: 'Google' },
 })
 
+// Retrieving values with the `.get()` method
+
 const employedJohnCompany = lens(employedJohn).company.name.get()
 
 assert.equal(employedJohnCompany, 'Microsoft')
@@ -69,32 +75,7 @@ const employedMichaelCompany = lens(employedMichael).company.name.get()
 
 assert.equal(employedMichaelCompany, 'Google')
 
-const fisherMary = lens(mary).hobbies[0].name.set('Fishing')
-
-assert.deepEqual(fisherMary, {
-  name: 'Mary Sanchez',
-  hobbies: [{ name: 'Fishing' }],
-})
-
-const boredMary = lens(mary).hobbies.del(0).get()
-
-assert.deepEqual(boredMary, { name: 'Mary Sanchez', hobbies: [] })
-
-const sailorMary = lens(mary)
-  .hobbies.put(0, { name: 'Fishing' })
-  .hobbies.put(-1, { name: 'Boating' })
-  .hobbies.put(1, [{ name: 'Swimming' }, { name: 'Rowing' }])
-  .get()
-
-assert.deepEqual(sailorMary, {
-  name: 'Mary Sanchez',
-  hobbies: [
-    { name: 'Fishing' },
-    { name: 'Swimming' },
-    { name: 'Rowing' },
-    { name: 'Boating' },
-  ],
-})
+// Setting values and continuing with the `.let()` method
 
 const localizedEmployedJohn = lens(employedJohn)
   .company.name.let('Apple')
@@ -126,16 +107,15 @@ assert.deepEqual(localizedEmployedMary, {
   },
 })
 
-const allCompanies = [
-  localizedEmployedJohn,
-  localizedEmployedMary,
-  employedMichael,
-].map(lens<Person>().company.name.get)
-
-assert.deepEqual(allCompanies, ['Apple', 'Microsoft', 'Google'])
+// Pegging lenses with the `.peg()` method
 
 const selfEmployedJohn = lens(john)
-  .company.name.peg(lens<Person>().name.mod((name) => `${name} Inc.`).get)
+  .company.name.peg(
+    lens<Person>().name.mod({
+      get: (name) => `${name} Inc.`,
+      set: (companyName) => companyName.replace(' Inc.', ''),
+    }),
+  )
   .get()
 
 assert.deepEqual(selfEmployedJohn, {
@@ -143,13 +123,15 @@ assert.deepEqual(selfEmployedJohn, {
   company: { name: 'John Wallace Inc.' },
 })
 
-const nameSplitterMod = lens<Person>().name.mod(
-  (name): { first: string; last: string } => ({
+// Modifying lenses with the `.mod()` method
+
+const nameSplitterMod = lens<Person>().name.mod({
+  get: (name: string): { first: string; last: string } => ({
     first: name.split(' ')[0],
     last: name.split(' ').slice(1).join(' '),
   }),
-  ({ first, last }): string => `${first} ${last}`,
-)
+  set: ({ first, last }): string => `${first} ${last}`,
+})
 
 const johnSplitName = nameSplitterMod.get(john)
 
@@ -162,17 +144,46 @@ const johnIsNowRobert = nameSplitterMod.set(
 
 assert.deepEqual(johnIsNowRobert, { name: 'Robert Wilcox' })
 
-const allNamesUppercase = [
+// Manipulating immutable arrays with the `.del()` and `.put()` methods
+
+const fisherMary = lens(mary).hobbies[0].name.set('Fishing')
+
+assert.deepEqual(fisherMary, {
+  name: 'Mary Sanchez',
+  hobbies: [{ name: 'Fishing' }],
+})
+
+const boredMary = lens(mary).hobbies.del(0).get()
+
+assert.deepEqual(boredMary, { name: 'Mary Sanchez', hobbies: [] })
+
+const sailorMary = lens(mary)
+  .hobbies.put(0, { name: 'Fishing' })
+  .hobbies.put(-1, { name: 'Boating' })
+  .hobbies.put(1, [{ name: 'Swimming' }, { name: 'Rowing' }])
+  .get()
+
+assert.deepEqual(sailorMary, {
+  name: 'Mary Sanchez',
+  hobbies: [
+    { name: 'Fishing' },
+    { name: 'Swimming' },
+    { name: 'Rowing' },
+    { name: 'Boating' },
+  ],
+})
+
+// Using abstract lenses
+
+const allCompanies = [
   localizedEmployedJohn,
   localizedEmployedMary,
   employedMichael,
-].map(lens<Person>().name.mod((name) => name.toUpperCase()).get)
+].map(lens<Person>().company.name.get)
 
-assert.deepEqual(allNamesUppercase, [
-  'JOHN WALLACE',
-  'MARY SANCHEZ',
-  'MICHAEL COLLINS',
-])
+assert.deepEqual(allCompanies, ['Apple', 'Microsoft', 'Google'])
+
+// Recursive abstract lenses
 
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
 

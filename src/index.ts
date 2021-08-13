@@ -1,12 +1,13 @@
 export type Getter<A, B> = (a: A) => B
 export type Setter<A, B> = (b: B, a: A) => A
+export type Lens<A, B> = { get: Getter<A, B>; set: Setter<A, B> }
 
 export type BaseLens<A, B> = {
   get(target?: A): B
   set(value: B, target?: A): A
   let(value: B): ProxyLens<A, A>
-  peg(get: Getter<A, B>): ProxyLens<A, A>
-  mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>
+  peg({ get, set }: Lens<A, B>): ProxyLens<A, A>
+  mod<C>({ get, set }: Lens<B, C>): ProxyLens<A, C>
 }
 
 type ExtractRecord<T> = Extract<T, { [key: string]: unknown }>
@@ -52,13 +53,16 @@ function baseLens<A, B>(
     set: (value: B, target?: A): A => set(value, (target ?? root) as A),
     let: (value: B): ProxyLens<A, A> =>
       getterProxyLens<A>((target: A): A => set(value, target), root),
-    peg: (get_: Getter<A, B>): ProxyLens<A, A> =>
-      getterProxyLens<A>((target: A): A => set(get_(target), target), root),
-    mod: <C>(get_: Getter<B, C>, set_?: Setter<B, C>): ProxyLens<A, C> =>
+    peg: ({ get: get_, set: set_ }: Lens<A, B>): ProxyLens<A, A> =>
+      proxyLens<A, A>(
+        (target: A): A => set(get_(target), target),
+        (value: A, target: A): A => set_(get_(value), set(get_(value), target)),
+        root,
+      ),
+    mod: <C>({ get: get_, set: set_ }: Lens<B, C>): ProxyLens<A, C> =>
       proxyLens<A, C>(
         (target: A): C => get_(get(target)),
-        (value: C, target: A): A =>
-          set_ != null ? set(set_(value, get(target)), target) : target,
+        (value: C, target: A): A => set(set_(value, get(target)), target),
         root,
       ),
   } as BaseLens<A, B>
