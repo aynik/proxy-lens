@@ -20,8 +20,8 @@ A type safe functional lens implemented via proxy
       + [.get(a?: A): B](#geta-a-b)
       + [.set(b: B, a?: A): A](#setb-b-a-a-a)
       + [.let(b: B): ProxyLens<A, A>](#letb-b-proxylensa-a)
-      + [.peg({ get, set }: Lens<A, B>): ProxyLens<A, A>](#peg-get-set--lensa-b-proxylensa-a)
-      + [.mod<C>({ get, set }: Lens<B, C>): ProxyLens<A, C>](#modc-get-set--lensb-c-proxylensa-c)
+      + [.peg({ get }: Lens<A, B>): ProxyLens<A, A>](#peg-get--lensa-b-proxylensa-a)
+      + [.mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>](#modcget-getterb-c-set-setterb-c-proxylensa-c)
     - [ArrayLens<A, B>](#arraylensa-b-interface)
       + [.del(index: number, a?: A): ProxyLens<A, A>](#delindex-number-a-a-proxylensa-a)
       + [.put(index: number, b: B | B[], a?: A): ProxyLens<A, A>](#putindex-number-b-b--b-a-a-proxylensa-a)
@@ -123,8 +123,8 @@ type BaseLens<A, B> = {
   get(target?: A): B
   set(value: B, target?: A): A
   let(value: B): ProxyLens<A, A>
-  peg({ get, set }: Lens<A, B>): ProxyLens<A, A>
-  mod<C>({ get, set }: Lens<B, C>): ProxyLens<A, C>
+  peg({ get }: Lens<A, B>): ProxyLens<A, A>
+  mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>
 }
 ```
 
@@ -186,9 +186,9 @@ lens<{ a: boolean, b: boolean }>()
 
 ---
 
-#### `.peg({ get, set }: Lens<A, B>): ProxyLens<A, A>`
+#### `.peg({ get }: Lens<A, B>): ProxyLens<A, A>`
 
-Pegs a lens (or an object with a getter and a setter) to another lens with the same signature. Like [`.let`](#letb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained. 
+Pegs a lens (or an object with just a getter) to another lens with the same signature. Like [`.let`](#letb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained. 
 
 ```typescript
 lens({ a: false, b: true })
@@ -212,30 +212,28 @@ lens<{ a: boolean, b: boolean }>()
 
 ---
 
-#### `.mod<C>({ get, set }: Lens<B, C>): ProxyLens<A, C>`
+#### `.mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>`
 
-It's a method used to build modifications, that is, two-way transforms between input and output values. It takes a lens (or an object with a getter and a setter) from the current focused type to the new target type, then returns a new lens from the previous root type `A` to the new target type `C`.
+It's a method used to build modifications between two types `A` and `C` through a common type `B`. It takes one getter and an optional setter in case we want it to be a two way transformation. It then returns a new lens from the previous root type `A` to the new target type `C`.
 
 ```typescript
-lens({ a: { b: true }}).mod({
-  get: (b: boolean): string => String(b),
-  set: (c: string): boolean => c === 'true'
-}).get() // :: 'true'
+lens({ a: { b: true }}).mod(
+  (b: boolean): string => String(b),
+).get() // :: 'true'
 
-lens({ a: { b: true }}).mod({
-  get: (b: boolean): string => String(b),
-  set: (c: string): boolean => c === 'true'
-}).set('true') // :: { a: { b: true }}
+lens({ a: { b: true }}).mod(
+  (b: boolean): string => String(b),
+  (c: string): boolean => c === 'true'
+).set('true') // :: { a: { b: true }}
 
-lens<{ a: { b: boolean }}>().mod({
-  get: (b: boolean): string => String(b),
-  set: (c: string): boolean => c === 'true'
-}).get({ a: { b: true }}) // :: 'true'
+lens<{ a: { b: boolean }}>().mod(
+  (b: boolean): string => String(b),
+).get({ a: { b: true }}) // :: 'true'
 
-lens({ a: { b: boolean }}).mod({
-  get: (b: boolean): string => String(b),
-  set: (c: string): boolean => c === 'true'
-}).set('true', { a: { b: true }}) // :: { a: { b: true }}
+lens({ a: { b: boolean }}).mod(
+  (b: boolean): string => String(b),
+  (c: string): boolean => c === 'true'
+).set('true', { a: { b: true }}) // :: { a: { b: true }}
 ```
 
 [Back to top ↑](#proxy-lens)
@@ -463,18 +461,13 @@ assert.deepEqual(localizedEmployedMary, {
 
 ---
 
-### Pegging lenses with the [`.peg`](#peg-get-set--lensa-b-proxylensa-a) method
+### Pegging lenses with the [`.peg`](#peg-get--lensa-b-proxylensa-a) method
 
-Sometimes we want a lens to depend on other lens, an easy way to do this is to use the [`.peg`](#peg-get-set--lensa-b-proxylensa-a) method, where we can pass another lens so the value of the first is derived from the second.
+Sometimes we want a lens to depend on other lens, an easy way to do this is to use the [`.peg`](#peg-get--lensa-b-proxylensa-a) method, where we can pass another lens so the value of the first is derived from the second.
 
 ```typescript
 const selfEmployedJohn = lens(john)
-  .company.name.peg(
-    lens<Person>().name.mod({
-      get: (name) => `${name} Inc.`,
-      set: (companyName) => companyName.replace(' Inc.', ''),
-    }),
-  )
+  .company.name.peg(lens<Person>().name.mod((name) => `${name} Inc.`))
   .get()
 
 assert.deepEqual(selfEmployedJohn, {
@@ -483,25 +476,27 @@ assert.deepEqual(selfEmployedJohn, {
 })
 ```
 
+Please note that we used a one-way mod to append a string to John's name.
+
 [Back to top ↑](#proxy-lens)
 
 ---
 
-### Modifying lenses with the [`.mod`](#modc-get-set--lensb-c-proxylensa-c) method
+### Modifying lenses with the [`.mod`](#modcget-getterb-c-set-setterb-c-proxylensa-c) method
 
 This method can be used to create modifications between two types. For example, we can create a two-way transform between objects and strings.
 
 ```typescript
-const nameSplitterMod = lens<Person>().name.mod({
-  get: (name): { first: string; last: string } => ({
+const nameSplitterMod = lens<Person>().name.mod(
+  (name): { first: string; last: string } => ({
     first: name.split(' ')[0],
     last: name
       .split(' ')
       .slice(1)
       .join(' ')
   }),
-  set: ({ first, last }): string => `${first} ${last}`
-:);
+  ({ first, last }): string => `${first} ${last}`
+);
 
 const johnSplitName = nameSplitterMod.get(john);
 

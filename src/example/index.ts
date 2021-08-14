@@ -110,13 +110,10 @@ assert.deepEqual(localizedEmployedMary, {
 // Pegging lenses with the `.peg()` method
 
 const selfEmployedJohn = lens(john)
-  .company.name.peg(
-    lens<Person>().name.mod({
-      get: (name) => `${name} Inc.`,
-      set: (companyName) => companyName.replace(' Inc.', ''),
-    }),
-  )
+  .company.name.peg(lens<Person>().name.mod((name): string => `${name} Inc.`))
   .get()
+
+console.log(selfEmployedJohn)
 
 assert.deepEqual(selfEmployedJohn, {
   name: 'John Wallace',
@@ -125,13 +122,13 @@ assert.deepEqual(selfEmployedJohn, {
 
 // Modifying lenses with the `.mod()` method
 
-const nameSplitterMod = lens<Person>().name.mod({
-  get: (name: string): { first: string; last: string } => ({
+const nameSplitterMod = lens<Person>().name.mod(
+  (name): { first: string; last: string } => ({
     first: name.split(' ')[0],
     last: name.split(' ').slice(1).join(' '),
   }),
-  set: ({ first, last }): string => `${first} ${last}`,
-})
+  ({ first, last }): string => `${first} ${last}`,
+)
 
 const johnSplitName = nameSplitterMod.get(john)
 
