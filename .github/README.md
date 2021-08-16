@@ -19,8 +19,8 @@ A type safe functional lens implemented via proxy
       + [.get(a?: A): B](#geta-a-b)
       + [.set(b: B, a?: A): A](#setb-b-a-a-a)
       + [.let(b: B): ProxyLens<A, A>](#letb-b-proxylensa-a)
-      + [.peg(get: Getter<A, B> | ProxyLens<A, B>): ProxyLens<A, A>](#pegget-gettera-b--proxylensa-b-proxylensa-a)
-      + [.mod<C>(get: Getter<B, C> | ProxyLens<B, C>, set?: Setter<B, C>): ProxyLens<A, C>](#modcget-getterb-c--proxylensb-c-set-setterb-c-proxylensa-c)
+      + [.peg(get: Getter<A, B>): ProxyLens<A, A>](#pegget-gettera-b-proxylensa-a)
+      + [.mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>](#modcget-getterb-c-set-setterb-c-proxylensa-c)
     - [ArrayLens<A, B>](#arraylensa-b-interface)
       + [.del(index: number, a?: A): ProxyLens<A, A>](#delindex-number-a-a-proxylensa-a)
       + [.put(index: number, b: B | B[], a?: A): ProxyLens<A, A>](#putindex-number-b-b--b-a-a-proxylensa-a)
@@ -100,7 +100,7 @@ Any function that implements the signature `(b: B, a: A) => A`.
 
 ### `ProxyLens<A, B>` (type)
 
-A union between the interfaces of `BaseLens<A, B>` and `ArrayLens<A, B>`. 
+A union between the interfaces of `Getter<A, B>`, `BaseLens<A, B>` and `ArrayLens<A, B>`. 
 
 [Back to top ↑](#proxy-lens)
 
@@ -113,8 +113,8 @@ type BaseLens<A, B> = {
   get(target?: A): B
   set(value: B, target?: A): A
   let(value: B): ProxyLens<A, A>
-  peg(get: Getter<A, B> | ProxyLens<A, B>): ProxyLens<A, A>
-  mod<C>(get: Getter<B, C> | ProxyLens<B, C>, set?: Setter<B, C>): ProxyLens<A, C>
+  peg(get: Getter<A, B>): ProxyLens<A, A>
+  mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>
 }
 ```
 
@@ -176,9 +176,9 @@ lens<{ a: boolean, b: boolean }>()
 
 ---
 
-#### `.peg(get: Getter<A, B> | ProxyLens<A, B>): ProxyLens<A, A>`
+#### `.peg(get: Getter<A, B>): ProxyLens<A, A>`
 
-Pegs a getter or a lens to another lens with the same signature. Like [`.let`](#letb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained. 
+Pegs a getter (or a lens, because it also works as a getter) to another lens with the same signature. Like [`.let`](#letb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained. 
 
 ```typescript
 lens({ a: false, b: true })
@@ -202,9 +202,9 @@ lens<{ a: boolean, b: boolean }>()
 
 ---
 
-#### `.mod<C>(get: Getter<B, C> | ProxyLens<B, C>, set?: Setter<B, C>): ProxyLens<A, C>`
+#### `.mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>`
 
-It's a method used to build modifications between two types `A` and `C` through a common type `B`. It takes either a lens or one getter and an optional setter in case we want it to be a two way transformation. It then returns a new lens from the previous root type `A` to the new target type `C`.
+It's a method used to build modifications between two types `A` and `C` through a common type `B`. It takes one getter (or a lens, because it works as a getter) and an optional setter in case we want it to be a two way transformation. It then returns a new lens from the previous root type `A` to the new target type `C`.
 
 ```typescript
 lens({ a: { b: true }}).mod(
@@ -451,9 +451,9 @@ assert.deepEqual(localizedEmployedMary, {
 
 ---
 
-### Pegging lenses with the [`.peg`](#pegget-gettera-b--proxylensa-b-proxylensa-a) method
+### Pegging lenses with the [`.peg`](#pegget-gettera-b-proxylensa-a) method
 
-Sometimes we want a lens to depend on other lens, an easy way to do this is to use the [`.peg`](#pegget-gettera-b--proxylensa-b-proxylensa-a) method, where we can pass another lens so the value of the first is derived from the second.
+Sometimes we want a lens to depend on other lens, an easy way to do this is to use the [`.peg`](#pegget-gettera-b-proxylensa-a) method, where we can pass another lens so the value of the first is derived from the second.
 
 ```typescript
 const selfEmployedJohn = lens(john)
@@ -472,7 +472,7 @@ Please note that we used a one-way mod to append a string to John's name.
 
 ---
 
-### Modifying lenses with the [`.mod`](#modcget-getterb-c--proxylensb-c-set-setterb-c-proxylensa-c) method
+### Modifying lenses with the [`.mod`](#modcget-getterb-c-set-setterb-c-proxylensa-c) method
 
 This method can be used to create modifications between two types. For example, we can create a two-way transform between objects and strings.
 
