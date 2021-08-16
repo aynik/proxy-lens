@@ -1,13 +1,15 @@
 export type Getter<A, B> = (a: A) => B
 export type Setter<A, B> = (b: B, a: A) => A
-export type Lens<A, B> = { get: Getter<A, B>; set: Setter<A, B> }
 
-export type BaseLens<A, B> = {
+export type BaseLens<A, B> = ((target?: A) => B) & {
   get(target?: A): B
   set(value: B, target?: A): A
   let(value: B): ProxyLens<A, A>
-  peg({ get }: Lens<A, B>): ProxyLens<A, A>
-  mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>
+  peg(get: Getter<A, B> | ProxyLens<A, B>): ProxyLens<A, A>
+  mod<C>(
+    get: Getter<B, C> | ProxyLens<B, C>,
+    set?: Setter<B, C>,
+  ): ProxyLens<A, C>
 }
 
 type ExtractRecord<T> = Extract<T, { [key: string]: unknown }>
@@ -52,16 +54,21 @@ function baseLens<A, B>(
     get: (target: A): B => get((target ?? root) as A),
     set: (value: B, target: A): A => set(value, (target ?? root) as A),
     let: (value: B): ProxyLens<A, A> =>
-      lens<A>(root).mod<A>(
+      proxyLens<A, A>(
         (target: A): A => set(value, target),
         (value: A): A => value,
+        root,
       ),
-    peg: ({ get: get_ }: Lens<A, B>): ProxyLens<A, A> =>
-      lens<A>(root).mod<A>(
+    peg: (get_: Getter<A, B> | ProxyLens<A, B>): ProxyLens<A, A> =>
+      proxyLens<A, A>(
         (target: A): A => set(get_(set(get(target), target)), target),
         (value: A): A => set(get_(set(get(value), value)), value),
+        root,
       ),
-    mod: <C>(get_: Getter<B, C>, set_?: Setter<B, C>): ProxyLens<A, C> =>
+    mod: <C>(
+      get_: Getter<B, C> | ProxyLens<B, C>,
+      set_?: Setter<B, C>,
+    ): ProxyLens<A, C> =>
       proxyLens<A, C>(
         (target: A): C => get_(get(target)),
         (value: C, target: A): A =>
@@ -124,7 +131,9 @@ export function proxyLens<A, B>(
   set: Setter<A, B> | Setter<A, ArrayFrom<B>>,
   root?: A,
 ): ProxyLens<A, B> {
-  return new Proxy({} as ProxyLens<A, B>, {
+  const callable = (target?: A): B | ArrayFrom<B> => get((target ?? root) as A)
+  return new Proxy(callable as ProxyLens<A, B>, {
+    apply: (_, __, [target]: [A?]) => callable(target),
     get: (_, key) =>
       arrayLens(
         get as Getter<A, ArrayFrom<B>>,

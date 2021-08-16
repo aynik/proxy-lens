@@ -41,6 +41,16 @@ describe('get', () => {
       true,
     )
   })
+
+  it('gets a nested value using callable lens', () => {
+    const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
+    expect(lens(source).a.b.c()).toEqual(true)
+  })
+
+  it('gets a nested value using abstract callable lens', () => {
+    const source = { a: { b: { c: true } } }
+    expect(lens<{ a: { b: { c: boolean } } }>().a.b.c(source)).toEqual(true)
+  })
 })
 
 describe('set', () => {
@@ -238,7 +248,11 @@ describe('peg', () => {
     }
     expect(
       lens(source)
-        .a.c.peg(lens<typeof source>().b.mod((bool) => !bool))
+        .a.c.peg(
+          lens<typeof source>().b.mod<boolean>(
+            (bool: boolean): boolean => !bool,
+          ),
+        )
         .a.c.get(),
     ).toEqual(false)
   })
@@ -275,7 +289,9 @@ describe('peg', () => {
     expect(
       lens<{ a: { c: boolean }; b: boolean }>()
         .a.c.peg(
-          lens<{ a: { c: boolean }; b: boolean }>().b.mod((bool) => !bool),
+          lens<{ a: { c: boolean }; b: boolean }>().b.mod<boolean>(
+            (bool: boolean): boolean => !bool,
+          ),
         )
         .a.c.get(source),
     ).toEqual(false)
