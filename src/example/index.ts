@@ -109,20 +109,27 @@ assert.deepEqual(localizedEmployedMary, {
 
 // Pegging lenses with the `.peg()` method
 
-const selfEmployedJohn = lens(john)
-  .company.name.peg(lens<Person>().name.mod((name): string => `${name} Inc.`))
-  .get()
+const freelancerJohn = lens(john).company.name.peg(lens<Person>().name).get()
 
-console.log(selfEmployedJohn)
-
-assert.deepEqual(selfEmployedJohn, {
+assert.deepEqual(freelancerJohn, {
   name: 'John Wallace',
-  company: { name: 'John Wallace Inc.' },
+  company: { name: 'John Wallace' },
 })
 
 // Modifying lenses with the `.mod()` method
 
-const nameSplitterMod = lens<Person>().name.mod(
+const enterpreneurJohn = lens(freelancerJohn)
+  .company.name.mod((name): string => `${name} Inc.`)
+  .get()
+
+assert.deepEqual(enterpreneurJohn, {
+  name: 'John Wallace',
+  company: { name: 'John Wallace Inc.' },
+})
+
+// Transforming lenses with the `.iso()` method
+
+const nameSplitterIso = lens<Person>().name.iso(
   (name): { first: string; last: string } => ({
     first: name.split(' ')[0],
     last: name.split(' ').slice(1).join(' '),
@@ -130,11 +137,11 @@ const nameSplitterMod = lens<Person>().name.mod(
   ({ first, last }): string => `${first} ${last}`,
 )
 
-const johnSplitName = nameSplitterMod.get(john)
+const johnSplitName = nameSplitterIso.get(john)
 
 assert.deepEqual(johnSplitName, { first: 'John', last: 'Wallace' })
 
-const johnIsNowRobert = nameSplitterMod.set(
+const johnIsNowRobert = nameSplitterIso.set(
   { first: 'Robert', last: 'Wilcox' },
   john,
 )

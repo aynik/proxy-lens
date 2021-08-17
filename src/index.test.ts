@@ -41,16 +41,6 @@ describe('get', () => {
       true,
     )
   })
-
-  it('gets a nested value using callable lens', () => {
-    const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
-    expect(lens(source).a.b.c()).toEqual(true)
-  })
-
-  it('gets a nested value using abstract callable lens', () => {
-    const source = { a: { b: { c: true } } }
-    expect(lens<{ a: { b: { c: boolean } } }>().a.b.c(source)).toEqual(true)
-  })
 })
 
 describe('set', () => {
@@ -241,60 +231,26 @@ describe('peg', () => {
     ).toEqual(true)
   })
 
-  it('gets a pegged sibling value via mod', () => {
+  it('gets a pegged sibling value using abstract lens', () => {
     const source: { a: { c: boolean }; b: boolean } = {
       a: { c: false },
       b: true,
     }
     expect(
-      lens(source)
-        .a.c.peg(
-          lens<typeof source>().b.mod<boolean>(
-            (bool: boolean): boolean => !bool,
-          ),
-        )
-        .a.c.get(),
-    ).toEqual(false)
-  })
-
-  it('gets a pegged sibling value using abstract lens', () => {
-    const source = {
-      a: { c: false },
-      b: true,
-    }
-    expect(
-      lens<{ a: { c: boolean }; b: boolean }>()
-        .a.c.peg(lens<{ a: { c: boolean }; b: boolean }>().b)
-        .a.c.get(source),
+      lens<typeof source>().a.c.peg(lens<typeof source>().b).a.c.get(source),
     ).toEqual(true)
   })
 
   it('gets a pegged nested value using abstract lens via array', () => {
-    const source = {
+    const source: { a: { c: boolean }[]; b: boolean } = {
       a: [{ c: false }],
       b: true,
     }
     expect(
-      lens<{ a: { c: boolean }[]; b: boolean }>()
-        .a[0].c.peg(lens<{ a: { c: boolean }[]; b: boolean }>().b)
+      lens<typeof source>()
+        .a[0].c.peg(lens<typeof source>().b)
         .a[0].c.get(source),
     ).toEqual(true)
-  })
-
-  it('gets a pegged sibling value using abstract lens via mod', () => {
-    const source = {
-      a: { c: false },
-      b: true,
-    }
-    expect(
-      lens<{ a: { c: boolean }; b: boolean }>()
-        .a.c.peg(
-          lens<{ a: { c: boolean }; b: boolean }>().b.mod<boolean>(
-            (bool: boolean): boolean => !bool,
-          ),
-        )
-        .a.c.get(source),
-    ).toEqual(false)
   })
 
   it('sets a pegged sibling value', () => {
@@ -354,14 +310,12 @@ describe('peg', () => {
   })
 
   it('sets a pegged sibling value using abstract lens', () => {
-    const source = {
+    const source: { a: { c: boolean }; b: boolean } = {
       a: { c: false },
       b: true,
     }
     expect(
-      lens<{ a: { c: boolean }; b: boolean }>()
-        .a.c.peg(lens<{ a: { c: boolean }; b: boolean }>().b)
-        .set(source),
+      lens<typeof source>().a.c.peg(lens<typeof source>().b).set(source),
     ).toMatchObject({
       a: { c: true },
       b: true,
@@ -369,14 +323,12 @@ describe('peg', () => {
   })
 
   it('sets a pegged nested value using abstract lens via array', () => {
-    const source = {
+    const source: { a: { c: boolean }[]; b: boolean } = {
       a: [{ c: false }],
       b: true,
     }
     expect(
-      lens<{ a: { c: boolean }[]; b: boolean }>()
-        .a[0].c.peg(lens<{ a: { c: boolean }[]; b: boolean }>().b)
-        .set(source),
+      lens<typeof source>().a[0].c.peg(lens<typeof source>().b).set(source),
     ).toMatchObject({
       a: [{ c: true }],
       b: true,
@@ -389,24 +341,18 @@ describe('mod', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
     expect(
       lens(source)
-        .a.b.c.mod(
-          (flag: boolean): string => String(flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(),
-    ).toEqual('true')
+        .a.b.c.mod((flag: boolean): boolean => !flag)
+        .a.b.c.get(),
+    ).toEqual(false)
   })
 
   it('gets a mod from a nested undefined value via undefined', () => {
     const source: { a?: { b?: { c?: boolean } } } = {}
     expect(
       lens(source)
-        .a.b.c.mod(
-          (flag?: boolean): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(),
-    ).toEqual('false')
+        .a.b.c.mod((flag?: boolean): boolean => !flag)
+        .a.b.c.get(),
+    ).toEqual(true)
   })
 
   it('gets a mod from a nested undefined value via null', () => {
@@ -415,12 +361,9 @@ describe('mod', () => {
     }
     expect(
       lens(source)
-        .a.b.c.mod(
-          (flag: boolean | null): string => String(!!flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(),
-    ).toEqual('false')
+        .a.b.c.mod((flag: boolean | null): boolean => !flag)
+        .a.b.c.get(),
+    ).toEqual(true)
   })
 
   it('gets a mod from a nested value via array index', () => {
@@ -429,12 +372,9 @@ describe('mod', () => {
     }
     expect(
       lens(source)
-        .a.b[0].c.mod(
-          (flag: boolean): string => String(flag),
-          (str: string): boolean => str === 'true',
-        )
-        .get(),
-    ).toEqual('true')
+        .a.b[0].c.mod((flag: boolean): boolean => !flag)
+        .a.b[0].c.get(),
+    ).toEqual(false)
   })
 
   it('gets a mod from a nested undefined value via array index', () => {
@@ -445,7 +385,73 @@ describe('mod', () => {
     }
     expect(
       lens(source)
-        .a.b[0].c.mod(
+        .a.b[0].c.mod((flag: boolean | null): boolean => !flag)
+        .a.b[0].c.get(),
+    ).toEqual(true)
+  })
+
+  it('gets a mod from a nested value using abstract lens', () => {
+    const source = { a: { b: { c: true } } }
+    expect(
+      lens<{ a: { b: { c: boolean } } }>()
+        .a.b.c.mod((flag: boolean): boolean => !flag)
+        .a.b.c.get(source),
+    ).toEqual(false)
+  })
+
+  it('gets a mod from a nested value using abstract lens via array index', () => {
+    const source = { a: { b: [{ c: true }] } }
+    expect(
+      lens<{ a: { b: readonly { c: boolean }[] } }>()
+        .a.b[0].c.mod((flag: boolean): boolean => !flag)
+        .a.b[0].c.get(source),
+    ).toEqual(false)
+  })
+
+  it('sets a mod to no effect', () => {
+    const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
+    expect(
+      lens(source)
+        .a.b.c.mod((flag: boolean): boolean => !flag)
+        .a.b.c.set(false),
+    ).toMatchObject({
+      a: { b: { c: true } },
+    })
+  })
+})
+
+describe('iso', () => {
+  it('gets an iso from a nested value', () => {
+    const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
+    expect(
+      lens(source)
+        .a.b.c.iso(
+          (flag: boolean): string => String(flag),
+          (str: string): boolean => str === 'true',
+        )
+        .get(),
+    ).toEqual('true')
+  })
+
+  it('gets an iso from a nested undefined value via undefined', () => {
+    const source: { a?: { b?: { c?: boolean } } } = {}
+    expect(
+      lens(source)
+        .a.b.c.iso(
+          (flag?: boolean): string => String(!!flag),
+          (str: string): boolean => str === 'true',
+        )
+        .get(),
+    ).toEqual('false')
+  })
+
+  it('gets an iso from a nested undefined value via null', () => {
+    const source: { a: { b: { c: boolean | null } | null } | null } = {
+      a: null,
+    }
+    expect(
+      lens(source)
+        .a.b.c.iso(
           (flag: boolean | null): string => String(!!flag),
           (str: string): boolean => str === 'true',
         )
@@ -453,11 +459,41 @@ describe('mod', () => {
     ).toEqual('false')
   })
 
-  it('gets a mod from a nested value using abstract lens', () => {
+  it('gets an iso from a nested value via array index', () => {
+    const source: { a: { b: readonly { c: boolean }[] } } = {
+      a: { b: [{ c: true }] },
+    }
+    expect(
+      lens(source)
+        .a.b[0].c.iso(
+          (flag: boolean): string => String(flag),
+          (str: string): boolean => str === 'true',
+        )
+        .get(),
+    ).toEqual('true')
+  })
+
+  it('gets an iso from a nested undefined value via array index', () => {
+    const source: {
+      a: { b: readonly { c: boolean | null }[] | null } | null
+    } = {
+      a: null,
+    }
+    expect(
+      lens(source)
+        .a.b[0].c.iso(
+          (flag: boolean | null): string => String(!!flag),
+          (str: string): boolean => str === 'true',
+        )
+        .get(),
+    ).toEqual('false')
+  })
+
+  it('gets an iso from a nested value using abstract lens', () => {
     const source = { a: { b: { c: true } } }
     expect(
       lens<{ a: { b: { c: boolean } } }>()
-        .a.b.c.mod(
+        .a.b.c.iso(
           (flag: boolean): string => String(flag),
           (str: string): boolean => str === 'true',
         )
@@ -465,11 +501,11 @@ describe('mod', () => {
     ).toEqual('true')
   })
 
-  it('gets a mod from a nested value using abstract lens via array index', () => {
+  it('gets an iso from a nested value using abstract lens via array index', () => {
     const source = { a: { b: [{ c: true }] } }
     expect(
       lens<{ a: { b: readonly { c: boolean }[] } }>()
-        .a.b[0].c.mod(
+        .a.b[0].c.iso(
           (flag: boolean): string => String(flag),
           (str: string): boolean => str === 'true',
         )
@@ -477,11 +513,11 @@ describe('mod', () => {
     ).toEqual('true')
   })
 
-  it('sets a mod from a nested value', () => {
+  it('sets an iso from a nested value', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
     expect(
       lens(source)
-        .a.b.c.mod(
+        .a.b.c.iso(
           (flag: boolean): string => String(!!flag),
           (str: string): boolean => str === 'true',
         )
@@ -491,11 +527,11 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested undefined value via undefined', () => {
+  it('sets an iso from a nested undefined value via undefined', () => {
     const source: { a?: { b?: { c?: boolean } } } = {}
     expect(
       lens(source)
-        .a.b.c.mod(
+        .a.b.c.iso(
           (flag?: boolean): string => String(!!flag),
           (str: string): boolean => str === 'true',
         )
@@ -505,13 +541,13 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested undefined value via null', () => {
+  it('sets an iso from a nested undefined value via null', () => {
     const source: { a: { b: { c: boolean | null } | null } | null } = {
       a: null,
     }
     expect(
       lens(source)
-        .a.b.c.mod(
+        .a.b.c.iso(
           (flag: boolean | null): string => String(!!flag),
           (str: string): boolean => str === 'true',
         )
@@ -521,13 +557,13 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested value via array index', () => {
+  it('sets an iso from a nested value via array index', () => {
     const source: { a: { b: readonly { c: boolean }[] } } = {
       a: { b: [{ c: true }] },
     }
     expect(
       lens(source)
-        .a.b[0].c.mod(
+        .a.b[0].c.iso(
           (flag: boolean): string => String(!!flag),
           (str: string): boolean => str === 'true',
         )
@@ -537,7 +573,7 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested undefined value via array index', () => {
+  it('sets an iso from a nested undefined value via array index', () => {
     const source: {
       a: { b: readonly { c: boolean | null }[] | null } | null
     } = {
@@ -545,7 +581,7 @@ describe('mod', () => {
     }
     expect(
       lens(source)
-        .a.b[0].c.mod(
+        .a.b[0].c.iso(
           (flag: boolean | null): string => String(!!flag),
           (str: string): boolean => str === 'true',
         )
@@ -555,11 +591,11 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested value using abstract lens', () => {
+  it('sets an iso from a nested value using abstract lens', () => {
     const source = { a: { b: { c: true } } }
     expect(
       lens<{ a: { b: { c: boolean } } }>()
-        .a.b.c.mod(
+        .a.b.c.iso(
           (flag: boolean): string => String(!!flag),
           (str: string): boolean => str === 'true',
         )
@@ -569,99 +605,17 @@ describe('mod', () => {
     })
   })
 
-  it('sets a mod from a nested value using abstract lens via array index', () => {
+  it('sets an iso from a nested value using abstract lens via array index', () => {
     const source = { a: { b: [{ c: true }] } }
     expect(
       lens<{ a: { b: readonly { c: boolean }[] } }>()
-        .a.b[0].c.mod(
+        .a.b[0].c.iso(
           (flag: boolean): string => String(!!flag),
           (str: string): boolean => str === 'true',
         )
         .set('true', source),
     ).toMatchObject({
       a: { b: [{ c: true }] },
-    })
-  })
-
-  it('gets a one-way mod from a nested value', () => {
-    const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
-    expect(
-      lens(source)
-        .a.b.c.mod((flag: boolean): boolean => !flag)
-        .get(),
-    ).toEqual(false)
-  })
-
-  it('gets a one-way mod from a nested undefined value via undefined', () => {
-    const source: { a?: { b?: { c?: boolean } } } = {}
-    expect(
-      lens(source)
-        .a.b.c.mod((flag?: boolean): boolean => !flag)
-        .get(),
-    ).toEqual(true)
-  })
-
-  it('gets a one-way mod from a nested undefined value via null', () => {
-    const source: { a: { b: { c: boolean | null } | null } | null } = {
-      a: null,
-    }
-    expect(
-      lens(source)
-        .a.b.c.mod((flag: boolean | null): boolean => !flag)
-        .get(),
-    ).toEqual(true)
-  })
-
-  it('gets a one-way mod from a nested value via array index', () => {
-    const source: { a: { b: readonly { c: boolean }[] } } = {
-      a: { b: [{ c: true }] },
-    }
-    expect(
-      lens(source)
-        .a.b[0].c.mod((flag: boolean): boolean => !flag)
-        .get(),
-    ).toEqual(false)
-  })
-
-  it('gets a one-way mod from a nested undefined value via array index', () => {
-    const source: {
-      a: { b: readonly { c: boolean | null }[] | null } | null
-    } = {
-      a: null,
-    }
-    expect(
-      lens(source)
-        .a.b[0].c.mod((flag: boolean | null): boolean => !flag)
-        .get(),
-    ).toEqual(true)
-  })
-
-  it('gets a one-way mod from a nested value using abstract lens', () => {
-    const source = { a: { b: { c: true } } }
-    expect(
-      lens<{ a: { b: { c: boolean } } }>()
-        .a.b.c.mod((flag: boolean): boolean => !flag)
-        .get(source),
-    ).toEqual(false)
-  })
-
-  it('gets a one-way mod from a nested value using abstract lens via array index', () => {
-    const source = { a: { b: [{ c: true }] } }
-    expect(
-      lens<{ a: { b: readonly { c: boolean }[] } }>()
-        .a.b[0].c.mod((flag: boolean): boolean => !flag)
-        .get(source),
-    ).toEqual(false)
-  })
-
-  it('sets a one-way mod to no effect', () => {
-    const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
-    expect(
-      lens(source)
-        .a.b.c.mod((flag: boolean): boolean => !flag)
-        .set(false),
-    ).toMatchObject({
-      a: { b: { c: true } },
     })
   })
 })

@@ -20,7 +20,8 @@ A type safe functional lens implemented via proxy
       + [.set(b: B, a?: A): A](#setb-b-a-a-a)
       + [.let(b: B): ProxyLens<A, A>](#letb-b-proxylensa-a)
       + [.peg(get: Getter<A, B>): ProxyLens<A, A>](#pegget-gettera-b-proxylensa-a)
-      + [.mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>](#modcget-getterb-c-set-setterb-c-proxylensa-c)
+      + [.mod(get: Getter<B, B>): ProxyLens<A, A>](#modget-getterb-b-proxylensa-a)
+      + [.iso(get: Getter<B, C>, set: Setter<B, C>): ProxyLens<A, C>](#isocget-getterb-c-set-setterb-c-proxylensa-c)
     - [ArrayLens<A, B>](#arraylensa-b-interface)
       + [.del(index: number, a?: A): ProxyLens<A, A>](#delindex-number-a-a-proxylensa-a)
       + [.put(index: number, b: B | B[], a?: A): ProxyLens<A, A>](#putindex-number-b-b--b-a-a-proxylensa-a)
@@ -100,7 +101,7 @@ Any function that implements the signature `(b: B, a: A) => A`.
 
 ### `ProxyLens<A, B>` (type)
 
-A union between the interfaces of `Getter<A, B>`, `BaseLens<A, B>` and `ArrayLens<A, B>`. 
+A union between the interfaces of `BaseLens<A, B>` and `ArrayLens<A, B>`. 
 
 [Back to top ↑](#proxy-lens)
 
@@ -114,7 +115,8 @@ type BaseLens<A, B> = {
   set(value: B, target?: A): A
   let(value: B): ProxyLens<A, A>
   peg(get: Getter<A, B>): ProxyLens<A, A>
-  mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>
+  mod(get: Getter<B, B>): ProxyLens<A, A>
+  iso<C>(get: Getter<B, C>, set: Setter<B, C>): ProxyLens<A, C>
 }
 ```
 
@@ -178,7 +180,7 @@ lens<{ a: boolean, b: boolean }>()
 
 #### `.peg(get: Getter<A, B>): ProxyLens<A, A>`
 
-Pegs a getter (or a lens, because it also works as a getter) to another lens with the same signature. Like [`.let`](#letb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained. 
+Pegs a getter (or another lens) to a given lens with the same signature. Like [`.let`](#letb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained. 
 
 ```typescript
 lens({ a: false, b: true })
@@ -202,25 +204,46 @@ lens<{ a: boolean, b: boolean }>()
 
 ---
 
-#### `.mod<C>(get: Getter<B, C>, set?: Setter<B, C>): ProxyLens<A, C>`
+#### `.mod(get: Getter<B, B>): ProxyLens<A, A>`
+
+It's a method used to modify lens outputs, suited for same-type value updates depending on arbitrary conditions. Takes a getter (or another lens) and like [`.let`](#letb-b-proxylensa-a) returns a lens focused on the root so other operations may be chained.
+
+```typescript
+lens({ a: { b: true }}).mod(
+  (b: boolean): boolean => !b,
+).get() // :: 'false'
+
+lens<{ a: { b: boolean }}>().mod(
+  (b: boolean): boolean => !b,
+).get({ a: { b: true }}) // :: 'false'
+
+```
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+#### `.iso<C>(get: Getter<B, C>, set: Setter<B, C>): ProxyLens<A, C>`
 
 It's a method used to build modifications between two types `A` and `C` through a common type `B`. It takes one getter (or a lens, because it works as a getter) and an optional setter in case we want it to be a two way transformation. It then returns a new lens from the previous root type `A` to the new target type `C`.
 
 ```typescript
-lens({ a: { b: true }}).mod(
+lens({ a: { b: true }}).iso(
   (b: boolean): string => String(b),
+  (c: string): boolean => c === 'true'
 ).get() // :: 'true'
 
-lens({ a: { b: true }}).mod(
+lens({ a: { b: true }}).iso(
   (b: boolean): string => String(b),
   (c: string): boolean => c === 'true'
 ).set('true') // :: { a: { b: true }}
 
-lens<{ a: { b: boolean }}>().mod(
+lens<{ a: { b: boolean }}>().iso(
   (b: boolean): string => String(b),
+  (c: string): boolean => c === 'true'
 ).get({ a: { b: true }}) // :: 'true'
 
-lens({ a: { b: boolean }}).mod(
+lens({ a: { b: boolean }}).iso(
   (b: boolean): string => String(b),
   (c: string): boolean => c === 'true'
 ).set('true', { a: { b: true }}) // :: { a: { b: true }}
@@ -456,13 +479,11 @@ assert.deepEqual(localizedEmployedMary, {
 Sometimes we want a lens to depend on other lens, an easy way to do this is to use the [`.peg`](#pegget-gettera-b-proxylensa-a) method, where we can pass another lens so the value of the first is derived from the second.
 
 ```typescript
-const selfEmployedJohn = lens(john)
-  .company.name.peg(lens<Person>().name.mod((name) => `${name} Inc.`))
-  .get()
+const freelancerJohn = lens(john).company.name.peg(lens<Person>().name).get()
 
-assert.deepEqual(selfEmployedJohn, {
+assert.deepEqual(freelancerJohn, {
   name: 'John Wallace',
-  company: { name: 'John Wallace Inc.' },
+  company: { name: 'John Wallace' },
 })
 ```
 
@@ -472,32 +493,50 @@ Please note that we used a one-way mod to append a string to John's name.
 
 ---
 
-### Modifying lenses with the [`.mod`](#modcget-getterb-c-set-setterb-c-proxylensa-c) method
+### Modifying lenses with the [`.mod`](#modget-getterb-b-proxylensa-a) method
 
-This method can be used to create modifications between two types. For example, we can create a two-way transform between objects and strings.
+We can upgrade the previously generated object by transforming the company name so it reflects that John is now running his own startup.
 
 ```typescript
-const nameSplitterMod = lens<Person>().name.mod(
+const enterpreneurJohn = lens(freelancerJohn)
+  .company.name.mod((name): string => `${name} Inc.`)
+  .get()
+
+assert.deepEqual(enterpreneurJohn, {
+  name: 'John Wallace',
+  company: { name: 'John Wallace Inc.' },
+})
+```
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Transforming lenses with the [`.iso`](#isocget-getterb-c-set-setterb-c-proxylensa-c) method
+
+Transforming lenses from one type to another and viceversa is relatively simple with this method, we just need to provide a getter and a setter that produce the required type for each side of the transformation.
+
+```typescript
+const nameSplitterIso = lens<Person>().name.iso(
   (name): { first: string; last: string } => ({
     first: name.split(' ')[0],
-    last: name
-      .split(' ')
-      .slice(1)
-      .join(' ')
+    last: name.split(' ').slice(1).join(' '),
   }),
-  ({ first, last }): string => `${first} ${last}`
-);
+  ({ first, last }): string => `${first} ${last}`,
+)
 
-const johnSplitName = nameSplitterMod.get(john);
+const johnSplitName = nameSplitterIso.get(john)
 
-assert.deepEqual(johnSplitName, { first: 'John', last: 'Wallace' });
+assert.deepEqual(johnSplitName, { first: 'John', last: 'Wallace' })
 
-const johnIsNowRobert = nameSplitterMod.set(
+const johnIsNowRobert = nameSplitterIso.set(
   { first: 'Robert', last: 'Wilcox' },
-  john
-);
+  john,
+)
 
-assert.deepEqual(johnIsNowRobert, { name: 'Robert Wilcox' });
+assert.deepEqual(johnIsNowRobert, { name: 'Robert Wilcox' })
+
+
 ```
 
 [Back to top ↑](#proxy-lens)
