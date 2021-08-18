@@ -27,24 +27,20 @@ type ArrayFrom<T> = ReadonlyArray<ArrayItem<T>>
 
 type ExtractArray<T> = Extract<T, ReadonlyArray<unknown>>
 
-export type ArrayLens<A, B> = ExtractArray<B> extends ArrayFrom<B>
-  ? {
-      del(index: number): ProxyLens<A, A>
-      put(index: number, value: ArrayItem<B> | B): ProxyLens<A, A>
-    }
-  : never
+export type ArrayLens<A, B extends ArrayFrom<B>> = {
+  del(index: number): ProxyLens<A, A>
+  put(index: number, value: ArrayItem<B> | B): ProxyLens<A, A>
+}
 
-type ArrayProxyLens<A, B> = ArrayLens<A, B> &
-  (ExtractArray<B> extends ArrayFrom<B>
-    ? {
-        [I in keyof Omit<
-          ArrayFrom<ExtractArray<B>>,
-          Exclude<keyof ArrayFrom<ExtractArray<B>>, number>
-        >]: ProxyLens<A, ExtractArray<B>[I]>
-      }
-    : unknown)
+type ArrayProxyLens<A, B extends ArrayFrom<B>> = ArrayLens<A, B> &
+  {
+    [I in keyof Omit<B, Exclude<keyof B, number>>]: ProxyLens<A, B[I]>
+  }
 
-export type ProxyLens<A, B> = BaseProxyLens<A, B> & ArrayProxyLens<A, B>
+export type ProxyLens<A, B> = BaseProxyLens<A, B> &
+  (ExtractArray<B> extends never
+    ? unknown
+    : ArrayProxyLens<A, ExtractArray<ArrayFrom<B>>>)
 
 function baseLens<A, B>(
   get: Getter<A, B>,
@@ -81,15 +77,6 @@ function baseLens<A, B>(
   } as BaseLens<A, B>
 }
 
-function mutateArray<B extends ArrayFrom<B>>(
-  target: ArrayFrom<B>,
-  fn: (target: B[]) => void,
-): ArrayFrom<B> {
-  const targetCopy = (target ?? []).slice()
-  fn(targetCopy as B[])
-  return targetCopy
-}
-
 function arrayLens<A, B extends ArrayFrom<B>>(
   get: Getter<A, ArrayFrom<B>>,
   set: Setter<A, ArrayFrom<B>>,
@@ -100,7 +87,11 @@ function arrayLens<A, B extends ArrayFrom<B>>(
       proxyLens<A, A>(
         (target: A): A =>
           set(
-            mutateArray(get(target), (target: B[]) => target.splice(index, 1)),
+            (() => {
+              const copy = (get(target) ?? []).slice()
+              copy.splice(index, 1)
+              return copy
+            })(),
             target,
           ),
         (value: A): A => value,
@@ -110,13 +101,15 @@ function arrayLens<A, B extends ArrayFrom<B>>(
       proxyLens<A, A>(
         (target: A): A =>
           set(
-            mutateArray(get(target), (target: B[]) => {
-              target.splice(
-                index < 0 ? target.length + 1 + index : index,
+            (() => {
+              const copy = (get(target) ?? []).slice()
+              copy.splice(
+                index < 0 ? copy.length + 1 + index : index,
                 0,
                 ...(Array.isArray(value) ? value : [value]),
               )
-            }),
+              return copy
+            })(),
             target,
           ),
         (value: A): A => value,
@@ -135,7 +128,8 @@ export function proxyLens<A, B>(
   root?: A,
 ): ProxyLens<A, B> {
   return new Proxy(get as ProxyLens<A, B>, {
-    apply: (_, __, args: (A | void)[]): B | ArrayFrom<B> => get(args[0] as A),
+    apply: (_, __, args: (A | void)[]): B =>
+      (get as Getter<A, B>)(args[0] as A),
     get: (_, key) =>
       arrayLens(
         get as Getter<A, ArrayFrom<B>>,
