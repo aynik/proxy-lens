@@ -177,6 +177,50 @@ assert.deepEqual(sailorMary, {
   ],
 })
 
+// Modifying array items with the `.map()` method
+
+const people = [john, michael, mary]
+
+const upperCaseNamePeople = lens(people)
+  .map(({ name, ...person }) => ({
+    ...person,
+    name: name.toUpperCase(),
+  }))
+  .get()
+
+assert.deepEqual(upperCaseNamePeople, [
+  { name: 'JOHN WALLACE' },
+  { name: 'MICHAEL COLLINS' },
+  { name: 'MARY SANCHEZ' },
+])
+
+// Traversing arrays using the `.tap()` method
+
+const peopleNames = lens(people).tap().name.get()
+
+assert.deepEqual(peopleNames, [
+  'John Wallace',
+  'Michael Collins',
+  'Mary Sanchez',
+])
+
+const peopleNamesStartingWithM = lens(people)
+  .tap(({ name }) => name[0] === 'M')
+  .name.get()
+
+assert.deepEqual(peopleNamesStartingWithM, ['Michael Collins', 'Mary Sanchez'])
+
+const surnameFirstPeople = lens(people)
+  .tap()
+  .name.map((name: string) => name.split(' ').reverse().join(', '))
+  .get()
+
+assert.deepEqual(surnameFirstPeople, [
+  { name: 'Wallace, John' },
+  { name: 'Collins, Michael' },
+  { name: 'Sanchez, Mary' },
+])
+
 // Using abstract lenses
 
 const allCompanies = [

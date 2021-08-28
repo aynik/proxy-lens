@@ -30,6 +30,14 @@ type ExtractArray<T> = Extract<T, ReadonlyArray<unknown>>
 export type ArrayLens<A, B extends ArrayFrom<B>> = {
   del(index: number): ProxyLens<A, A>
   put(index: number, value: ArrayItem<B> | B): ProxyLens<A, A>
+  map(
+    get_:
+      | Getter<ArrayItem<B>, ArrayItem<B>>
+      | ProxyLens<ArrayItem<B>, ArrayItem<B>>,
+  ): ProxyLens<A, A>
+  tap(
+    get_?: Getter<ArrayItem<B>, boolean> | ProxyLens<ArrayItem<B>, boolean>,
+  ): ProxyTraversal<A, B>
 }
 
 type ArrayProxyLens<A, B extends ArrayFrom<B>> = ArrayLens<A, B> &
@@ -41,6 +49,29 @@ export type ProxyLens<A, B> = BaseProxyLens<A, B> &
   (ExtractArray<B> extends never
     ? unknown
     : ArrayProxyLens<A, ExtractArray<ArrayFrom<B>>>)
+
+type BaseProxyTraversal<A, B> = BaseLens<A, B> &
+  (ExtractRecord<B> extends { [key: string]: unknown }
+    ? {
+        [K in keyof ExtractRecord<B>]-?: ProxyLens<
+          A,
+          ReadonlyArray<ExtractRecord<B>[K]>
+        >
+      }
+    : unknown)
+
+type ArrayProxyTraversal<A, B extends ArrayFrom<B>> = ArrayLens<A, B> &
+  {
+    [I in keyof Omit<B, Exclude<keyof B, number>>]: ProxyLens<
+      A,
+      ReadonlyArray<B[I]>
+    >
+  }
+
+export type ProxyTraversal<A, B> = BaseProxyTraversal<A, ArrayItem<B>> &
+  (ExtractArray<B> extends never
+    ? unknown
+    : ArrayProxyTraversal<A, ExtractArray<ArrayFrom<ArrayItem<B>>>>)
 
 function baseLens<A, B>(
   get: Getter<A, B>,
@@ -115,6 +146,39 @@ function arrayLens<A, B extends ArrayFrom<B>>(
         (value: A): A => value,
         root,
       ),
+    map: (get_: Getter<ArrayItem<B>, ArrayItem<B>>): ProxyLens<A, A> =>
+      proxyLens<A, A>(
+        (target: A): A => set((get(target) ?? []).map(get_), target),
+        (values: A): A => set(get(values).map(get_), values),
+        root,
+      ),
+    tap: (
+      get_?: Getter<ArrayItem<B>, boolean>,
+    ): ProxyTraversal<A, ArrayFrom<B>> =>
+      proxyTraversal<A, ArrayFrom<B>>(
+        (target: A): ArrayFrom<B> =>
+          (get(target) ?? []).filter(get_ ?? ((_) => true)),
+        (values: ArrayFrom<B>, target: A): A =>
+          set(
+            (get(target) ?? []).reduce<{
+              iterator: Iterator<ArrayItem<B>>
+              result: ArrayFrom<B>
+            }>(
+              ({ iterator, result: value }, item) => ({
+                iterator,
+                result: [
+                  ...value,
+                  (get_ ?? ((_) => true))(item)
+                    ? iterator.next().value ?? item
+                    : item,
+                ],
+              }),
+              { iterator: values[Symbol.iterator](), result: [] },
+            ).result,
+            target,
+          ),
+        root,
+      ),
   }
 }
 
@@ -122,7 +186,25 @@ function getTarget<T>(key: string | number | symbol) {
   return (key.toString().match(/^\+?(0|[1-9]\d*)$/) ? [] : {}) as T
 }
 
-export function proxyLens<A, B>(
+function dispatch<A, B>(
+  key: string | number | symbol,
+  get: Getter<A, B> | Getter<A, ArrayFrom<B>>,
+  set: Setter<A, B> | Setter<A, ArrayFrom<B>>,
+  root?: A,
+) {
+  return (
+    arrayLens<A, ArrayFrom<B>>(
+      get as Getter<A, ArrayFrom<B>>,
+      set as Setter<A, ArrayFrom<B>>,
+      root,
+    )[key as keyof ArrayLens<A, ArrayFrom<B>>] ??
+    baseLens<A, B>(get as Getter<A, B>, set as Setter<A, B>, root)[
+      key as keyof BaseLens<A, B>
+    ]
+  )
+}
+
+function proxyLens<A, B>(
   get: Getter<A, B> | Getter<A, ArrayFrom<B>>,
   set: Setter<A, B> | Setter<A, ArrayFrom<B>>,
   root?: A,
@@ -131,14 +213,7 @@ export function proxyLens<A, B>(
     apply: (_, __, args: (A | void)[]): B =>
       (get as Getter<A, B>)(args[0] as A),
     get: (_, key) =>
-      arrayLens(
-        get as Getter<A, ArrayFrom<B>>,
-        set as Setter<A, ArrayFrom<B>>,
-        root,
-      )[key as keyof ArrayLens<A, ArrayFrom<B>>] ??
-      baseLens(get as Getter<A, B>, set as Setter<A, B>, root)[
-        key as keyof BaseLens<A, B>
-      ] ??
+      dispatch<A, B>(key, get, set, root) ||
       proxyLens<A, B[keyof B]>(
         (target: A): B[keyof B] =>
           Object.assign(getTarget<B>(key), get(target))[key as keyof B],
@@ -147,6 +222,56 @@ export function proxyLens<A, B>(
             Object.assign(getTarget<B>(key), get(target), {
               [key as keyof B]: value,
             }),
+            target,
+          ),
+        root,
+      ),
+  })
+}
+
+function proxyTraversal<A, B extends ArrayFrom<B>>(
+  get: Getter<A, ArrayFrom<B>> | Getter<A, ArrayFrom<ArrayFrom<B>>>,
+  set: Setter<A, ArrayFrom<B>> | Setter<A, ArrayFrom<ArrayFrom<B>>>,
+  root?: A,
+): ProxyTraversal<A, ArrayFrom<B>> {
+  return new Proxy(get as ProxyTraversal<A, ArrayFrom<B>>, {
+    get: (_, key) =>
+      dispatch<A, B>(key, get, set, root) ||
+      proxyLens<A, ReadonlyArray<ArrayItem<B>[keyof ArrayItem<B>]>>(
+        (target: A): ReadonlyArray<ArrayItem<B>[keyof ArrayItem<B>]> =>
+          get(target).map(
+            (item) =>
+              Object.assign(getTarget<ArrayItem<B>>(key), item)[
+                key as keyof ArrayItem<B>
+              ],
+          ),
+        (
+          values: ReadonlyArray<ArrayItem<B>[keyof ArrayItem<B>]>,
+          target: A,
+        ): A =>
+          set(
+            values.reduce<{
+              iterator: Iterator<ArrayItem<B>>
+              result: ArrayFrom<B>
+            }>(
+              ({ iterator, result }, value) => ({
+                iterator,
+                result: [
+                  ...result,
+                  Object.assign(
+                    getTarget<ArrayItem<B>>(key),
+                    iterator.next().value,
+                    {
+                      [key as keyof ArrayItem<B>]: value,
+                    },
+                  ),
+                ],
+              }),
+              {
+                iterator: get(target)[Symbol.iterator](),
+                result: [],
+              },
+            ).result,
             target,
           ),
         root,

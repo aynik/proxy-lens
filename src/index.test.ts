@@ -787,3 +787,161 @@ describe('put', () => {
     })
   })
 })
+
+describe('map', () => {
+  it('maps an array', () => {
+    const source = { a: { b: [{ c: 'map' }] } }
+    expect(
+      lens(source)
+        .a.b.map(({ c }) => ({ c: c.toUpperCase() }))
+        .get(),
+    ).toMatchObject({
+      a: { b: [{ c: 'MAP' }] },
+    })
+  })
+
+  it('maps an array via null to empty array', () => {
+    const source: { a: { b: { c: string }[] | null } | null } = {
+      a: null,
+    }
+    expect(
+      lens(source)
+        .a.b.map((it) => it)
+        .get(),
+    ).toMatchObject({
+      a: { b: [] },
+    })
+  })
+
+  it('maps an array via undefined to empty array', () => {
+    const source: { a?: { b?: { c?: string }[] } } = {}
+    expect(
+      lens(source)
+        .a.b.map((it) => it)
+        .get(),
+    ).toMatchObject({
+      a: { b: [] },
+    })
+  })
+
+  it('maps an array using abstract lens', () => {
+    const source = {
+      a: { b: [{ c: 'map' }] },
+    }
+    expect(
+      lens<{ a: { b: { c: string }[] } }>()
+        .a.b.map(({ c }) => ({ c: c.toUpperCase() }))
+        .get(source),
+    ).toMatchObject({
+      a: { b: [{ c: 'MAP' }] },
+    })
+  })
+
+  it('sets a mapped array', () => {
+    const source = { a: { b: [{ c: 'map' }] } }
+    expect(
+      lens(source)
+        .a.b.map(({ c }) => ({ c: c.toUpperCase() }))
+        .a.b.set([{ c: 'set' }]),
+    ).toMatchObject({
+      a: { b: [{ c: 'SET' }] },
+    })
+  })
+
+  it('sets a mapped array via null to empty array', () => {
+    const source: { a: { b: { c: string }[] | null } | null } = {
+      a: null,
+    }
+    expect(
+      lens(source)
+        .a.b.map((it) => it)
+        .a.b.set([{ c: 'set' }]),
+    ).toMatchObject({
+      a: { b: [{ c: 'set' }] },
+    })
+  })
+
+  it('sets a mapped array via undefined to empty array', () => {
+    const source: { a?: { b?: { c?: string }[] } } = {}
+    expect(
+      lens(source)
+        .a.b.map((it) => it)
+        .a.b.set([{ c: 'set' }]),
+    ).toMatchObject({
+      a: { b: [{ c: 'set' }] },
+    })
+  })
+})
+
+describe('tap', () => {
+  it('taps an array', () => {
+    const source = { a: { b: [{ c: 'traversal' }, { c: 'map' }] } }
+    expect(lens(source).a.b.tap().c.get()).toMatchObject(['traversal', 'map'])
+  })
+
+  it('taps an array with a filter', () => {
+    const source = { a: { b: [{ c: 'noget' }, { c: 'tap' }] } }
+    expect(
+      lens(source)
+        .a.b.tap(({ c }) => c === 'tap')
+        .c.get(),
+    ).toMatchObject(['tap'])
+  })
+
+  it('taps an array via null', () => {
+    const source: { a: { b: { c: string }[] | null } | null } = { a: null }
+    expect(lens(source).a.b.tap().c.get()).toMatchObject([])
+  })
+
+  it('taps an array via undefined', () => {
+    const source: { a?: { b?: { c?: string }[] } } = {}
+    expect(lens(source).a.b.tap().c.get()).toMatchObject([])
+  })
+
+  it('taps an array usgin abstract lens', () => {
+    const source = {
+      a: { b: [{ c: 'traversal' }, { c: 'map' }] },
+    }
+    expect(
+      lens<{ a: { b: { c: string }[] } }>().a.b.tap().c.get(source),
+    ).toMatchObject(['traversal', 'map'])
+  })
+
+  it('sets a tapped array', () => {
+    const source = {
+      a: { b: [{ c: 'noset' }, { c: 'tap' }, { c: 'tap' }] },
+    }
+    expect(
+      lens(source)
+        .a.b.tap(({ c }) => c === 'tap')
+        .c.set(['set']),
+    ).toMatchObject({
+      a: { b: [{ c: 'noset' }, { c: 'set' }, { c: 'tap' }] },
+    })
+  })
+
+  it('sets a tapped array via null', () => {
+    const source: { a: { b: { c: string }[] | null } | null } = { a: null }
+    expect(lens(source).a.b.tap().c.set(['set', 'set'])).toMatchObject({
+      a: { b: [] },
+    })
+  })
+
+  it('sets a tapped array via undefined', () => {
+    const source: { a?: { b?: { c?: string }[] } } = {}
+    expect(lens(source).a.b.tap().c.set(['set', 'set'])).toMatchObject({
+      a: { b: [] },
+    })
+  })
+
+  it('sets a tapped array using abstract lens', () => {
+    const source = { a: { b: [{ c: 'tap' }, { c: 'tap' }] } }
+    expect(
+      lens<{ a: { b: { c: string }[] } }>()
+        .a.b.tap()
+        .c.set(['set', 'set'], source),
+    ).toMatchObject({
+      a: { b: [{ c: 'set' }, { c: 'set' }] },
+    })
+  })
+})
