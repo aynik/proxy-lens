@@ -15,6 +15,7 @@ A type safe functional lens implemented via proxy
     - [Getter<A, B>](#gettera-b-type)
     - [Setter<A, B>](#settera-b-type)
     - [ProxyLens<A, B>](#proxylensa-b-type)
+    - [ProxyTraversal<A, B>](#proxytraversala-b-type)
     - [BaseLens<A, B>](#baselensa-b-interface)
       + [.get(a?: A): B](#geta-a-b)
       + [.set(b: B, a?: A): A](#setb-b-a-a-a)
@@ -25,6 +26,8 @@ A type safe functional lens implemented via proxy
     - [ArrayLens<A, B>](#arraylensa-b-interface)
       + [.del(index: number, a?: A): ProxyLens<A, A>](#delindex-number-a-a-proxylensa-a)
       + [.put(index: number, b: B | B[], a?: A): ProxyLens<A, A>](#putindex-number-b-b--b-a-a-proxylensa-a)
+      + [.map(get: Getter<B, B>): ProxyLens<A, A>](#mapget-getterb-b-proxylensa-a)
+      + [.tap(get?: Getter<B, boolean>): ProxyTraversal<A, B>](#tapget-getterb-boolean-proxytraversala-b)
 * [Usage](#usage)
     - [Setup](#setup)
     - [Setting values with the `.set` method](#setting-values-with-the-set-method)
@@ -33,6 +36,8 @@ A type safe functional lens implemented via proxy
     - [Pegging lenses with the `.peg` method](#pegging-lenses-with-the-peg-method)
     - [Modifying lenses with the `.mod` method](#modifying-lenses-with-the-mod-method)
     - [Manipulating immutable arrays with the `.del` and `.put` methods](#manipulating-immutable-arrays-with-the-del-and-put-methods)
+    - [Modifying array items with the `.map` method](#modifying-array-items-with-the-map-method)
+    - [Traversing arrays using the `.tap` method](#traversing-arrays-using-the-tap-method)
     - [Using abstract lenses](#using-abstract-lenses)
     - [Recursive abstract lenses](#recursive-abstract-lenses)
 
@@ -102,6 +107,14 @@ Any function that implements the signature `(b: B, a: A) => A`.
 ### `ProxyLens<A, B>` (type)
 
 A union between the interfaces of `BaseLens<A, B>` and `ArrayLens<A, B>`. 
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+### `ProxyTraversal<A, B>` (type)
+
+A special kind of [`ProxyLens`](#proxylensa-b-type) used to represent traversals.
 
 [Back to top ↑](#proxy-lens)
 
@@ -309,6 +322,68 @@ lens<{ a: string[] }>()
 
 lens<{ a: string[] }>()
   .a.put(-1, ['insert', 'many'], { a: ['keep'] }).get() // :: { a: ['keep', 'insert', 'many'] }
+```
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+#### `.map(get: Getter<B, B>): ProxyLens<A, A>`
+
+It works like the [`.mod`](#modget-getterb-b-proxylensa-a) method but for array items.
+
+```typescript
+lens({ a: ['map'] })
+  .a.map((str) => str.toUpperCase()).get() // :: { a: ['MAP'] }
+
+lens<{ a: string[] }>()
+  .a.map((str) => str.toUpperCase())
+  .get({ a: ['map'] }) // :: { a: ['MAP'] }
+```
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+#### `.tap(get?: Getter<B, boolean>): ProxyTraversal<A, B>`
+
+It's used to create traversal lenses from arrays, traversal lenses work like regular lenses but they are focused on the collection of values of a given property. It takes an optional getter that returns a boolean which can be used to filter the collection of values.
+
+```typescript
+lens({ a: [{ b: 'traversal'}, { b: 'lens' }] })
+  .a.tap().b.get() // :: ['traversal', 'lens']
+
+lens<{ a: { b: string }[] }>()
+  .a.tap()
+  .b.get({ a: [{ b: 'traversal'}, { b: 'lens' }] }) // :: ['traversal', 'lens']
+
+lens({ a: [{ b: 'traversal'}, { b: 'lens' }] })
+  .a.tap(({ b }) => b[0] === 'l').b.get() // :: ['lens']
+
+lens<{ a: { b: string }[] }>()
+  .a.tap(({ b }) => b[0] === 'l').b.get() // :: ['lens']
+  .b.get({ a: [{ b: 'traversal'}, { b: 'lens' }] }) // :: ['lens']
+
+lens({ a: [{ b: 'traversal'}, { b: 'lens' }] })
+  .a.tap()
+  .b.set(['modified', 'value']) // :: { a: [ { b: 'modified' }, { b: 'value' } ] }
+
+lens({ a: { b: string }[] })
+  .a.tap().b.set(
+    ['modified', 'value'],
+    { a: [{ b: 'traversal'}, { b: 'lens' }] }
+  ) // :: { a: [ { b: 'modified' }, { b: 'value' } ] }
+
+lens({ a: [{ b: 'traversal'}, { b: 'lens' }] })
+  .a.tap(({ b }) => b[0] === 'l')
+  .b.set(['modified']) // :: { a: [ { b: 'traversal' }, { b: 'modified' } ] }
+
+lens({ a: { b: string }[] })
+  .a.tap(({ b }) => b[0] === 'l')
+  .b.set(
+    ['modified'],
+    { a: [{ b: 'traversal'}, { b: 'lens' }] }
+  ) // :: { a: [ { b: 'traversal' }, { b: 'modified' } ] }
 ```
 
 [Back to top ↑](#proxy-lens)
@@ -576,6 +651,67 @@ assert.deepEqual(sailorMary, {
     { name: 'Boating' }
   ]
 });
+```
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Modifying array items with the `.map` method
+
+With this method we can map arrays against a modification getter.
+
+```typescript
+const people = [john, michael, mary]
+
+const upperCaseNamePeople = lens(people)
+  .map(({ name, ...person }) => ({
+    ...person,
+    name: name.toUpperCase(),
+  }))
+  .get()
+
+assert.deepEqual(upperCaseNamePeople, [
+  { name: 'JOHN WALLACE' },
+  { name: 'MICHAEL COLLINS' },
+  { name: 'MARY SANCHEZ' },
+])
+```
+
+
+[Back to top ↑](#proxy-lens)
+
+---
+
+### Traversing arrays using the `.tap` method
+
+Often times we want to work with a given array item property, for this we use traversal lenses which can be created this way.
+
+```typescript
+const peopleNames = lens(people).tap().name.get()
+
+assert.deepEqual(peopleNames, [
+  'John Wallace',
+  'Michael Collins',
+  'Mary Sanchez',
+])
+
+const peopleNamesStartingWithM = lens(people)
+  .tap(({ name }) => name[0] === 'M')
+  .name.get()
+
+assert.deepEqual(peopleNamesStartingWithM, ['Michael Collins', 'Mary Sanchez'])
+
+const surnameFirstPeople = lens(people)
+  .tap()
+  .name.map((name: string) => name.split(' ').reverse().join(', '))
+  .get()
+
+assert.deepEqual(surnameFirstPeople, [
+  { name: 'Wallace, John' },
+  { name: 'Collins, Michael' },
+  { name: 'Sanchez, Mary' },
+])
 ```
 
 [Back to top ↑](#proxy-lens)
