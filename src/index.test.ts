@@ -408,6 +408,13 @@ describe('mod', () => {
     ).toEqual(false)
   })
 
+  it('gets a mod via another lens', () => {
+    const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
+    expect(lens(source).a.b.c.mod(lens<boolean>(false)).a.b.c.get()).toEqual(
+      false,
+    )
+  })
+
   it('sets a mod to no effect', () => {
     const source: { a: { b: { c: boolean } } } = { a: { b: { c: true } } }
     expect(
