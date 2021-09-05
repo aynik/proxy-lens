@@ -5,9 +5,12 @@ export type BaseLens<A, B> = {
   get(target?: A): B
   set(value: B, target?: A): A
   let(value: B): ProxyLens<A, A>
-  peg(get: Getter<A, B>): ProxyLens<A, A>
-  mod(get: Getter<B, B>): ProxyLens<A, A>
-  iso<C>(get: Getter<B, C>, set: Setter<B, C>): ProxyLens<A, C>
+  peg(get: Getter<A, B> | ProxyLens<A, B>): ProxyLens<A, A>
+  mod(get: Getter<B, B> | ProxyLens<B, B>): ProxyLens<A, A>
+  iso<C>(
+    get: Getter<B, C> | ProxyLens<B, C>,
+    set: Setter<B, C>,
+  ): ProxyLens<A, C>
 }
 
 type ExtractRecord<T> = Extract<T, { [key: string]: unknown }>
@@ -27,8 +30,14 @@ type ExtractArray<T> = Extract<T, ReadonlyArray<unknown>>
 export type ArrayLens<A, B extends ArrayFrom<B>> = {
   del(index: number): ProxyLens<A, A>
   put(index: number, value: ArrayItem<B> | B): ProxyLens<A, A>
-  map(get_: Getter<ArrayItem<B>, ArrayItem<B>>): ProxyLens<A, A>
-  tap(get_?: Getter<ArrayItem<B>, boolean>): ProxyTraversal<A, B>
+  map(
+    get_:
+      | Getter<ArrayItem<B>, ArrayItem<B>>
+      | ProxyLens<ArrayItem<B>, ArrayItem<B>>,
+  ): ProxyLens<A, A>
+  tap(
+    get_?: Getter<ArrayItem<B>, boolean> | ProxyLens<ArrayItem<B>, boolean>,
+  ): ProxyTraversal<A, B>
 }
 
 type ArrayProxyLens<A, B extends ArrayFrom<B>> = ArrayLens<A, B> &
@@ -36,8 +45,7 @@ type ArrayProxyLens<A, B extends ArrayFrom<B>> = ArrayLens<A, B> &
     [I in keyof Omit<B, Exclude<keyof B, number>>]: ProxyLens<A, B[I]>
   }
 
-export type ProxyLens<A, B> = Getter<A, B> &
-  BaseProxyLens<A, B> &
+export type ProxyLens<A, B> = BaseProxyLens<A, B> &
   (ExtractArray<B> extends never
     ? unknown
     : ArrayProxyLens<A, ExtractArray<ArrayFrom<B>>>)
@@ -60,18 +68,13 @@ type ArrayProxyTraversal<A, B extends ArrayFrom<B>> = ArrayLens<A, B> &
     >
   }
 
-export type ProxyTraversal<A, B> = Getter<A, ArrayItem<B>> &
-  BaseProxyTraversal<A, ArrayItem<B>> &
+export type ProxyTraversal<A, B> = BaseProxyTraversal<A, ArrayItem<B>> &
   (ExtractArray<B> extends never
     ? unknown
     : ArrayProxyTraversal<A, ExtractArray<ArrayFrom<ArrayItem<B>>>>)
 
-function baseLens<A, B>(
-  get: Getter<A, B>,
-  set: Setter<A, B>,
-  root?: A,
-): BaseLens<A, B> {
-  return {
+function baseLens<A, B>(get: Getter<A, B>, set: Setter<A, B>, root?: A) {
+  return <BaseLens<A, B>>{
     get: (target: A): B => get((target ?? root) as A),
     set: (value: B, target: A): A => set(value, (target ?? root) as A),
     let: (value: B): ProxyLens<A, A> =>
@@ -98,15 +101,15 @@ function baseLens<A, B>(
         (value: C, target: A): A => set(set_(value, get(target)), target),
         root,
       ),
-  } as BaseLens<A, B>
+  }
 }
 
 function arrayLens<A, B extends ArrayFrom<B>>(
   get: Getter<A, ArrayFrom<B>>,
   set: Setter<A, ArrayFrom<B>>,
   root?: A,
-): ArrayLens<A, ArrayFrom<B>> {
-  return {
+) {
+  return <ArrayLens<A, ArrayFrom<B>>>{
     del: (index: number): ProxyLens<A, A> =>
       proxyLens<A, A>(
         (target: A): A =>
@@ -198,20 +201,19 @@ function dispatch<A, B>(
 }
 
 function proxyLens<A, B>(
-  get: Getter<A, B> | Getter<A, ArrayFrom<B>>,
-  set: Setter<A, B> | Setter<A, ArrayFrom<B>>,
+  get: Getter<A, B>,
+  set: Setter<A, B>,
   root?: A,
 ): ProxyLens<A, B> {
   return new Proxy(get as ProxyLens<A, B>, {
-    apply: (_, __, args: (A | void)[]): B =>
-      (get as Getter<A, B>)(root ?? (args[0] as A)),
+    apply: (_, __, args: (A | void)[]): B => get(root ?? (args[0] as A)),
     get: (_, key) =>
       dispatch<A, B>(key, get, set, root) ||
       proxyLens<A, B[keyof B]>(
         (target: A): B[keyof B] =>
           Object.assign(getTarget<B>(key), get(target))[key as keyof B],
         (value: B[keyof B], target: A): A =>
-          (set as Setter<A, B>)(
+          set(
             Object.assign(getTarget<B>(key), get(target), {
               [key as keyof B]: value,
             }),
@@ -223,8 +225,8 @@ function proxyLens<A, B>(
 }
 
 function proxyTraversal<A, B extends ArrayFrom<B>>(
-  get: Getter<A, ArrayFrom<B>> | Getter<A, ArrayFrom<ArrayFrom<B>>>,
-  set: Setter<A, ArrayFrom<B>> | Setter<A, ArrayFrom<ArrayFrom<B>>>,
+  get: Getter<A, ArrayFrom<B>>,
+  set: Setter<A, ArrayFrom<B>>,
   root?: A,
 ): ProxyTraversal<A, ArrayFrom<B>> {
   return new Proxy(get as ProxyTraversal<A, ArrayFrom<B>>, {
